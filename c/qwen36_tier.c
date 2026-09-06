@@ -457,6 +457,7 @@ static void auto_place(int nl, int ne, int topk, const size_t *capacity, const u
  * expert, now in hand, hotter than the coldest resident on its device? */
 static int G_fp8_stream;
 static const float *G_fp8_lut;
+static int G_upload_sync;             /* QT_UPLOAD_SYNC=1: qt_issue waits for in-flight uploads first (tests) */
 
 int qt_init_fp8(int nl, int ne, int D, int Ih, int cap, int topk, const float *e4m3_lut){
     G_fp8_stream = 1; G_fp8_lut = e4m3_lut;
@@ -493,6 +494,7 @@ int qt_init(int nl, int ne, int D, int Ih, int cap, int topk, int expert_gs,
     }
     if(topk>QT_MAX_ROWS){ fprintf(stderr,"[qtier] topk>%d unsupported\n",QT_MAX_ROWS); return 0; }
     memset(&G,0,sizeof G);
+    { const char *e=getenv("QT_UPLOAD_SYNC"); G_upload_sync=e&&*e&&*e!='0'; }
     G.nl=nl; G.ne=ne; G.D=D; G.Ih=Ih; G.topk=topk;
     /* Placement state is re-derived per init: the device fold-in below reads
      * COLI_PLACE before the automatic placement has decided anything, and a
@@ -1006,6 +1008,14 @@ uint32_t qt_issue(int layer,const int *eids,int K,const float *x){
     for(int i=0;i<G.ndev;i++) G.is_cnt[i]=0;
 
     pthread_mutex_lock(&G.mx);
+    /* QT_UPLOAD_SYNC=1: everything enqueued so far is resident before this
+     * group is formed. Costs the upload/compute overlap, so it is for tests
+     * and diagnostics: the fake-backend engine test asserts on residency and
+     * hits after eight tokens, and on a two-vCPU runner the uploader thread
+     * did not get scheduled once before the run was over (0 uploads, 0 hits,
+     * six entries still queued). No group is open here, so the wait cannot
+     * meet a swap parked on issue_open. */
+    if(G_upload_sync) while(G.inflight>0 && !G.th_stop) pthread_cond_wait(&G.cv_take,&G.mx);
     if(layer==0) qt_lfru_tick_locked();
     G.issue_open=1;
     for(int k=0;k<K;k++){
