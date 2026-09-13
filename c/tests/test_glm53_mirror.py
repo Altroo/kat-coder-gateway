@@ -96,7 +96,27 @@ class GLM53MirrorRoutingTests(unittest.TestCase):
         self.assertNotIn("(equal fallback)", SRC)
         self.assertNotIn("using equal weights", SRC)
 
-    def test_whole_expert_replica_preflight_precedes_mmap(self):
+    def test_whole_expert_replica_preflight_helper(self):
+        fn = re.search(
+            r"static int glm53_expert_read_replica\(.*?\n\}",
+            SRC,
+            flags=re.S,
+        )
+        self.assertIsNotNone(fn)
+        body = fn.group(0)
+
+        self.assertIn(
+            "for (int p = 0; p < GLM53_EXPERT_PIECES; p++)",
+            body,
+        )
+        self.assertRegex(
+            body,
+            r"if\s*\(\s*st_fd_rep\(&m->S,\s*ref->fd\[p\],\s*rep\)"
+            r"\s*<\s*0\s*\)\s*return\s+0\s*;",
+        )
+        self.assertRegex(body, r"return\s+rep\s*;")
+
+    def test_expert_read_preflights_before_mmap(self):
         fn = re.search(
             r"static void expert_read\(.*?\n\}",
             SRC,
@@ -106,34 +126,12 @@ class GLM53MirrorRoutingTests(unittest.TestCase):
         body = fn.group(0)
 
         preflight = body.find(
-            "for (int p = 0; p < GLM53_EXPERT_PIECES; p++)"
+            "glm53_expert_read_replica(m, ref, layer, eid)"
         )
-        replica_check = body.find(
-            "st_fd_rep(&m->S, ref->fd[p], rep)"
-        )
-        fallback = body.find("rep = 0;")
         mmap_call = body.find("st_map_shard_range")
 
         self.assertGreaterEqual(preflight, 0)
-        self.assertGreater(replica_check, preflight)
-        self.assertGreater(fallback, replica_check)
-        self.assertGreater(mmap_call, fallback)
-
-    def test_partial_replica_falls_back_whole_expert(self):
-        fn = re.search(
-            r"static void expert_read\(.*?\n\}",
-            SRC,
-            flags=re.S,
-        )
-        self.assertIsNotNone(fn)
-        body = fn.group(0)
-
-        expected = re.compile(
-            r"if\s*\(\s*st_fd_rep\(&m->S,\s*ref->fd\[p\],\s*rep\)\s*<\s*0\s*\)"
-            r"\s*\{\s*rep\s*=\s*0\s*;\s*break\s*;\s*\}",
-            flags=re.S,
-        )
-        self.assertRegex(body, expected)
+        self.assertGreater(mmap_call, preflight)
 
     def test_mmap_uses_selected_replica_fd(self):
         fn = re.search(

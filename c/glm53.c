@@ -1588,13 +1588,7 @@ static void glm53_mirror_setup(GModel *m, const char *primary_dir) {
             valid ? " (COLI_DISK_WEIGHTS)" : " (startup bandwidth probe)");
 }
 
-static void expert_read(GModel *m, int layer, int eid, Slot *slot) {
-    const ERef *ref = &m->eref[(size_t)layer * m->c.n_experts + eid];
-    int metal_slot = 0;
-#ifdef COLI_METAL
-    metal_slot = g_metal_ready;
-#endif
-
+static int glm53_expert_read_replica(GModel *m, const ERef *ref, int layer, int eid) {
     int rep = glm53_expert_replica(layer, eid);
 
     /* A routed expert is one logical object. A partial mirror is allowed, but
@@ -1603,12 +1597,21 @@ static void expert_read(GModel *m, int layer, int eid, Slot *slot) {
      * drives. */
     if (rep > 0) {
         for (int p = 0; p < GLM53_EXPERT_PIECES; p++) {
-            if (st_fd_rep(&m->S, ref->fd[p], rep) < 0) {
-                rep = 0;
-                break;
-            }
+            if (st_fd_rep(&m->S, ref->fd[p], rep) < 0)
+                return 0;
         }
     }
+    return rep;
+}
+
+static void expert_read(GModel *m, int layer, int eid, Slot *slot) {
+    const ERef *ref = &m->eref[(size_t)layer * m->c.n_experts + eid];
+    int metal_slot = 0;
+#ifdef COLI_METAL
+    metal_slot = g_metal_ready;
+#endif
+
+    int rep = glm53_expert_read_replica(m, ref, layer, eid);
 
     /* The batched Metal MoE uses resolve() on expert pointers.
      * st_map_shard_range() may return a pointer inside an mmap rather than its
