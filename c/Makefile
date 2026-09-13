@@ -858,6 +858,27 @@ metal-test: tests/test_backend_metal.mm backend_metal.mm backend_metal.h
 	$(METALXX) tests/test_backend_metal.mm backend_metal.mm -framework Metal -framework Foundation -o backend_metal_test
 	./backend_metal_test
 
+# GLM-5.3 Metal correctness oracles. These exercise the clamped SwiGLU
+
+# primitive and the complete routed gate/up/SwiGLU/down/scatter MoE block
+
+# against their CPU references. Requires real Apple Metal hardware.
+
+.PHONY: glm53-metal-check
+
+glm53-metal-check: backend_metal.o tests/test_glm53_clamped_metal.c tests/test_glm53_moe_block_metal.c
+
+	@test "$(METAL)" = "1" || { echo "usage: make glm53-metal-check METAL=1" >&2; false; }
+
+	$(CC) $(CFLAGS) tests/test_glm53_clamped_metal.c backend_metal.o -o glm53_clamped_metal_test $(LDFLAGS)
+
+	./glm53_clamped_metal_test
+
+	$(CC) $(CFLAGS) tests/test_glm53_moe_block_metal.c backend_metal.o -o glm53_moe_block_metal_test $(LDFLAGS)
+
+	./glm53_moe_block_metal_test
+	$(RM) glm53_clamped_metal_test glm53_moe_block_metal_test
+
 # Standalone large-batch GEMM correctness sweep — reproduces the long-context prefill
 # corruption in seconds (no model). OMP-parallel CPU reference.
 gemm-test: tests/test_gemm_largebatch.mm backend_metal.mm backend_metal.h
