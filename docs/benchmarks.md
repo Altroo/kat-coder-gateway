@@ -99,6 +99,30 @@ These are estimates, not measurements.
 
 ## Community benchmarks (measured)
 
+### GLM-5.3-Flash Metal expert-cache cap sweep — Apple M4 Max
+
+A 512-token decode sweep on an Apple Mac Studio with M4 Max and 128 GB unified
+memory measured the effect of the GLM-5.3-Flash expert-cache `--cap` while
+keeping the rest of the workload fixed. The model was GLM-5.3-Flash Colibri
+int4-g64 with the Metal routed-MoE path enabled, `--ram 96`, `--ctx 8192`,
+and a two-SSD model mirror routed 60/40 (`COLI_DISK_WEIGHTS=3,2`).
+Usage-history saving was disabled for the isolated benchmark runs.
+
+| `--cap` | resident expert cache | decode | Metal MoE attempts | CPU fallback |
+|---:|---:|---:|---:|---:|
+| 4 | 2.4 GB | 1.850 tok/s | 24,533 | 0 |
+| **8** | **4.8 GB** | **1.895 tok/s** | **24,533** | **0** |
+| 12 | 7.1 GB | 1.887 tok/s | 24,533 | 0 |
+
+For this machine and 512-token workload, `--cap 8` was the best measured point:
+about 2.4% faster than cap 4 while using substantially less resident expert
+cache than cap 12. Cap 12 was about 0.4% slower than cap 8 despite using roughly
+2.3 GB more resident cache. All three runs completed 24,533 Metal routed-MoE
+executions with zero CPU fallback.
+
+This is a workload-specific result, not a universal cap recommendation. Shorter
+runs measured a different scaling curve, so the optimum can move with workload
+length, cache state, storage bandwidth, and available unified memory.
 Real numbers from real machines, stock build (`setup.sh`, gcc 13), greedy decoding, `--ngen 32`, MTP active:
 
 | machine | disk (iobench, 19 MB × 64, 8 threads) | config | measured |
