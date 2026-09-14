@@ -835,6 +835,52 @@ static void st_die_missing(shards *S, const char *name) {
     else if (numbered > 0)
         fprintf(stderr, "  shards numbered %05d..%05d, %d file(s)%s\n", lo, hi, numbered,
                 numbered == hi - lo + 1 ? " (contiguous: a gap would be at the tail)" : " (GAPS in the numbering)");
+    /* The checkpoint's own index says more than a file count can: which shard
+     * should hold this name, whether that shard is here, and whether the name
+     * exists in this checkpoint at all. The last case is the one a file count
+     * gets exactly wrong: every shard present, and the tensor never existed,
+     * because the engine running here is not this checkpoint's engine (a
+     * directory copied without config.json, and the GLM default looking for
+     * model.embed_tokens.weight in a Qwen3.8 that stores it under
+     * model.language_model). */
+    {
+        char dir[1200]; snprintf(dir, sizeof dir, "%s", S->paths[0]);
+        char *slash = strrchr(dir, '/');
+#ifdef _WIN32
+        char *bs = strrchr(dir, '\\'); if (bs && (!slash || bs > slash)) slash = bs;
+#endif
+        if (slash) *slash = 0; else snprintf(dir, sizeof dir, ".");
+        st_index ix; memset(&ix, 0, sizeof ix);
+        st_index_load(&ix, dir);
+        if (ix.map) {
+            const char *auth = st_index_shard(&ix, name);
+            if (!auth) {
+                fprintf(stderr,
+                    "\n  model.safetensors.index.json does not list '%s': this checkpoint never had a\n"
+                    "  tensor by that name. The engine running here expects one, so it is not this\n"
+                    "  checkpoint's engine. coli picks the engine from config.json -- run\n"
+                    "  `coli info --model <dir>` and check the family it names; without a config.json\n"
+                    "  there is no family, and the files to copy next to the shards are config.json,\n"
+                    "  tokenizer.json and model.safetensors.index.json from the model repo.\n", name);
+            } else {
+                int present = 0;
+                for (int i = 0; i < S->nfd && !present; i++) present = !strcmp(st_basename(S->paths[i]), auth);
+                if (!present)
+                    fprintf(stderr,
+                        "\n  model.safetensors.index.json maps '%s' to %s, which is not in this\n"
+                        "  directory: that shard is MISSING. Fetch just that file:\n"
+                        "      hf download <repo> %s --local-dir <model-dir>\n", name, auth, auth);
+                else
+                    fprintf(stderr,
+                        "\n  model.safetensors.index.json maps '%s' to %s, which is here but whose\n"
+                        "  header does not declare it: the file is not the one the index describes (an\n"
+                        "  interrupted transfer that kept the name, or a shard from another revision of\n"
+                        "  the repo). Re-download that one shard and compare its size with the repo's.\n", name, auth);
+            }
+            st_index_free(&ix);
+            exit(1);
+        }
+    }
     /* Follow the evidence: telling someone who already has every declared shard to
      * re-download sends them round a loop that cannot help them. */
     if (complete) {
