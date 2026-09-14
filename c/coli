@@ -1084,7 +1084,15 @@ def cmd_info(a):
         sz=sum(os.path.getsize(os.path.join(a.model,x)) for x in sts)
         row("shards", f"{len(sts)} files · {sz/1e9:.0f} GB on disk")
     else:
-        print(f"   {C.yel}config.json is missing (incomplete conversion?){C.r}")
+        # No config.json means no family, and no family means no engine: say so
+        # instead of letting the GLM default below stand in. A directory of shards
+        # copied without the small files is the usual shape of this (the Qwen3.8
+        # support case: the GLM engine then died on a tensor name it never had).
+        try: n_shards=len([x for x in os.listdir(a.model) if x.endswith('.safetensors')])
+        except OSError: n_shards=0
+        print(f"   {C.yel}config.json is missing{C.r}: coli picks the engine from it, so nothing can run here yet.")
+        print(f"   Copy the checkpoint's config.json (with tokenizer.json and model.safetensors.index.json)")
+        print(f"   from the model repo next to the {n_shards} shard(s) found here, then run coli info again.")
     try:
         mi=open('/proc/meminfo').read()
         tot=int(re.search(r'MemTotal:\s+(\d+)',mi).group(1))/1e6
@@ -1096,8 +1104,11 @@ def cmd_info(a):
         row("disk", f"{fs.free/1e9:.0f} GB free")
     except OSError:
         row("disk", "? GB (unavailable)")
-    engine=engine_for(a.model) if family else GLM
-    row("engine", "ready ✓" if os.path.exists(engine) else "not built (coli build)")
+    if family:
+        engine=engine_for(a.model)
+        row("engine", "ready ✓" if os.path.exists(engine) else "not built (coli build)")
+    else:
+        row("engine", "unknown until config.json is present")
     knobs=[]
     if a.ram: knobs.append(f"ram {a.ram}GB")
     if a.topp: knobs.append(f"topp {a.topp}")
