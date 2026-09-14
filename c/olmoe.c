@@ -934,6 +934,14 @@ static void moe(Model *m, Layer *l, int layer, float *x, int S, float *out) {
     free(logits); free(g); free(u); free(hh);
 }
 
+/* PROF phases (#1449): wall time in attention, in the MoE blocks (expert
+ * loads included) and in the head, plus positions forwarded. The serve loop
+ * reports per-turn deltas; expert_matmul_s is the MoE time minus the disk
+ * seconds measured inside it, clamped at zero; forwards counts step() calls,
+ * so tokens per forward reads 1.0 for this engine. Timing only. */
+static double g_prof_attn_s = 0.0, g_prof_moe_s = 0.0, g_prof_head_s = 0.0;
+static long long g_prof_forwards = 0;
+
 static void layers_forward_range(Model *m, float *x, int S, int pos_base,
                                  int layer_begin, int layer_end,
                                  int allow_prefetch) {
@@ -943,13 +951,17 @@ static void layers_forward_range(Model *m, float *x, int S, int pos_base,
     for (int i = layer_begin; i < layer_end; i++) {
         Layer *l = &m->L[i];
         for (int s = 0; s < S; s++) rmsnorm_row(nrm + (int64_t)s*D, x + (int64_t)s*D, l->in_ln, D, c->eps);
+        double t_attn = now_s();
         attention(m, l, i, nrm, S, pos_base, tmp);
+        g_prof_attn_s += now_s() - t_attn;
         for (int64_t j = 0; j < (int64_t)S*D; j++) x[j] += tmp[j];
         /* IMPROVEMENT 1: PILOT=1 -> 1-layer lookahead */
         if (allow_prefetch && g_pilot >= 1 && S <= 8 && i + 1 < c->n_layers)
             pilot_prefetch(m, i + 1, x, S);
         for (int s = 0; s < S; s++) rmsnorm_row(nrm + (int64_t)s*D, x + (int64_t)s*D, l->post_ln, D, c->eps);
+        double t_moe = now_s();
         moe(m, l, i, nrm, S, tmp);
+        g_prof_moe_s += now_s() - t_moe;
         for (int64_t j = 0; j < (int64_t)S*D; j++) x[j] += tmp[j];
 
         /* PREDICTION IMPROVEMENT C (Residual gate trick):
@@ -988,7 +1000,10 @@ static float *step(Model *m, const int *ids, int S, int pos_base) {
     float *last = falloc(D);
     rmsnorm_row(last, x + (int64_t)(S-1)*D, m->final_norm, D, c->eps);
     float *logit = falloc(c->vocab);
+    double t_head = now_s();
     matmul(logit, last, m->lm_head, 1, D, c->vocab);
+    g_prof_head_s += now_s() - t_head;
+    g_prof_forwards += 1;   /* forward passes, not positions: a prefill of S rows is one */
     free(x); free(last);
     return logit;
 }
@@ -1451,6 +1466,8 @@ static int serve_one(Model *m, Tok *T, SReq *q, int ctx_cap) {
     double t0 = now_s();
     uint64_t h0 = m->hits, m0 = m->miss;
     uint64_t disk0 = __atomic_load_n(&m->disk_ns, __ATOMIC_RELAXED);
+    double attn0 = g_prof_attn_s, moe0 = g_prof_moe_s, head0 = g_prof_head_s;
+    long long fwd0 = g_prof_forwards;
     float *logit = step(m, ids, np, 0);
     int hist_len = np, gen = 0, limited = 1, cancelled = 0;
     char buf[512];
@@ -1484,15 +1501,17 @@ static int serve_one(Model *m, Tok *T, SReq *q, int ctx_cap) {
         .length_limited = limited,
     };
     coli_serve_write_done(stdout, q->id, &done);
-    /* PROF: per-turn phase timings for the dashboard. The expert disk field is
-     * measured -- it is the one that dominates a streamed turn, and reporting a
-     * literal zero for it told /profile consumers that the reads cost nothing
-     * (#1449). The remaining four are still unmeasured in this engine: olmoe
-     * does not split the rest of its wall time the way glm.c and inkling.c do.
-     * They stay zero rather than being guessed, and the field order is the
-     * protocol's: disk, wait, matmul, attention, lm_head. */
+    /* PROF: per-turn phase timings for the dashboard, field order the protocol's:
+     * disk, wait, matmul, attention, lm_head, forwards. disk is what the expert
+     * loads took (#1449 first half); matmul is the MoE block time minus that
+     * disk time, clamped at zero (the PILOT worker's reads are counted in disk
+     * but happen off the block's clock); attention and lm_head are measured
+     * around their calls; forwards counts positions through step(). wait stays
+     * zero: this engine has no separate wait phase. */
     double disk_s = (double)(__atomic_load_n(&m->disk_ns, __ATOMIC_RELAXED) - disk0) / 1e9;
-    printf("PROF %.3f %d %d %.3f 0.0 0.0 0.0 0.0 %d\n", dt, np, gen, disk_s, gen + 1);
+    double matmul_s = (g_prof_moe_s - moe0) - disk_s; if (matmul_s < 0.0) matmul_s = 0.0;
+    printf("PROF %.3f %d %d %.3f 0.0 %.3f %.3f %.3f %lld\n", dt, np, gen, disk_s, matmul_s,
+           g_prof_attn_s - attn0, g_prof_head_s - head0, g_prof_forwards - fwd0);
     fflush(stdout);
     serve_hits(m);
     free(ids);
