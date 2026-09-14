@@ -11410,11 +11410,25 @@ int main(int argc, char **argv){
           int probe_l = m.c.n_layers>1 ? m.c.n_layers/2 : 0;
           double per = (double)expert_bytes_row(&m,probe_l,m.ebits);
           double tier_gb = per>0 ? (double)g_vk_budget*per/1e9 : 0.0;
+          /* COLI_VK_EXPERTS is a REQUEST, not a placement: vk_registry_fill() stops
+           * early when the device-local budget runs out (COLI_VK_RESERVE_GB), so
+           * pricing the request would over-reserve badly -- measured 95.6 GB reserved
+           * against 66.0 GB actually placed at 4500, and at 6000 the unclamped
+           * reservation starved MemAvailable to the 1 GB floor and killed the run.
+           * Clamp to what the device can actually take, and never take so much that
+           * the host side has nothing left to plan with. */
+          double vk_used=0, vk_bud=0;
+          if(tier_gb>0 && coli_vk_mem_budget(&vk_used,&vk_bud) && vk_bud>vk_used){
+              double reserve = getenv("COLI_VK_RESERVE_GB")?atof(getenv("COLI_VK_RESERVE_GB")):3.0;
+              double placeable = vk_bud - vk_used - reserve;
+              if(placeable>0 && tier_gb>placeable) tier_gb = placeable;
+          }
+          double host_floor = g_mem_avail_boot*0.35;      /* the planner keeps at least this */
+          if(tier_gb > g_mem_avail_boot - host_floor) tier_gb = g_mem_avail_boot - host_floor;
           if(tier_gb>0){
               g_mem_avail_boot -= tier_gb;
-              if(g_mem_avail_boot < 1.0) g_mem_avail_boot = 1.0;
               fprintf(stderr,"[VK] integrated/unified memory: expert tier will share physical RAM; "
-                  "RAM budget snapshot reduced by %.2f GB (%d experts planned) -> MemAvailable=%.1f GB\n",
+                  "RAM budget snapshot reduced by %.2f GB (%d experts requested) -> MemAvailable=%.1f GB\n",
                   tier_gb, g_vk_budget, g_mem_avail_boot);
           }
       }
