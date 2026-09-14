@@ -2036,6 +2036,13 @@ def project_python():
 def cmd_bench(a):
     need_model(a.model)
     banner("bench", model=a.model)
+    # tools/eval_glm.py drives the GLM engine through a scoring protocol no
+    # sibling engine speaks; handed any other model it started the GLM engine
+    # on it, which died on "this engine requires n_group=1" (#898's shape).
+    family=resolve_model(a.model).descriptor
+    if family.id!="glm":
+        sys.exit(f"{C.yel}coli bench is not wired for {family.display_name};{C.r} "
+                 f"its harness scores the GLM-5.2/5.3 engine only")
     # python con `tokenizers`: l'ambiente del progetto se c'e', altrimenti quello corrente
     py = project_python()
     tasks = ",".join(a.tasks) if a.tasks else "hellaswag,arc_challenge,mmlu"
