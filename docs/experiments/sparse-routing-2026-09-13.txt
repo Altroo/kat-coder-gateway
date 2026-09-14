@@ -26,14 +26,14 @@ bench_router_select: old duplicate scan vs marked-score scan (median of 11 seeds
 shape        E   K    old ns/call    new ns/call   speedup
 ---------------------------------------------------------------------
 random      64   8           1000           1000     1.00x
-random     256   8           4000           3000     1.33x
-random     256  32          71000          13000     5.46x
+random     256   8           5000           3000     1.67x
+random     256  32          75000          13000     5.77x
 peaked      64   8           1000           1000     1.00x
 peaked     256   8           5000           4000     1.25x
-peaked     256  32          71000          14000     5.07x
+peaked     256  32          93000          17000     5.47x
 plateau     64   8           1000           1000     1.00x
 plateau    256   8           5000           3000     1.67x
-plateau    256  32          77000          12000     6.42x
+plateau    256  32          98000          16000     6.13x
 bench_router_select: done (lower ns is better; speedup = old/new)
 
 Full DSA benchmark output (11 seeds x 2,000 repetitions per cell):

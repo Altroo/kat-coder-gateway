@@ -2,8 +2,8 @@
  *
  * This measures only top-K expert selection. The input is prepared before each
  * timed call, and both arms use the same finite score arrays and fallback path.
- * The full run uses 11 seeds and 2,000 repetitions per cell; correctness is
- * covered separately by test_router_nan.c.
+ * The full run uses 11 seeds and 2,000 repetitions per cell. Each cell also
+ * checks that both selectors return the same ordered expert ids before timing.
  */
 #define main coli_glm_main_unused
 #include "../colibri.c"
@@ -81,6 +81,19 @@ static double bench_new(const float *choice, int E, int K, int *idx, float *work
     return samples[N_REPEAT/2];
 }
 
+static int verify_selection(const float *choice, int E, int K, int layer){
+    int old_idx[32], new_idx[32]; float work[256];
+    select_old(choice,E,K,old_idx,layer);
+    memcpy(work,choice,(size_t)E*sizeof(float));
+    router_select_topk(work,E,K,new_idx,layer);
+    for(int kk=0;kk<K;kk++) if(old_idx[kk]!=new_idx[kk]){
+        fprintf(stderr,"selection mismatch: E=%d K=%d slot=%d old=%d new=%d\n",
+                E,K,kk,old_idx[kk],new_idx[kk]);
+        return 0;
+    }
+    return 1;
+}
+
 int main(void){
     const int cases[][2]={{64,8},{256,8},{256,32}};
     const char *shapes[]={"random","peaked","plateau"};
@@ -95,6 +108,7 @@ int main(void){
         for(int seed=0;seed<N_SEEDS;seed++){
             seed_rng(0xA5A5A5A5u+(uint32_t)(seed*0x9E3779B9u));
             fill_scores(choice,E,shape);
+            if(!verify_selection(choice,E,K,0)) return 2;
             old_seed[seed]=bench_old(choice,E,K,idx);
             new_seed[seed]=bench_new(choice,E,K,idx,work);
         }
