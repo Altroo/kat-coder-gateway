@@ -1257,6 +1257,9 @@ tests/test_st_mirror$(EXE): tests/test_st_mirror.c st.h json.h compat.h
 tests/test_st_overlay$(EXE): tests/test_st_overlay.c st.h json.h compat.h
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 
+tests/test_compat_mem$(EXE): tests/test_compat_mem.c compat.h
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+
 tests/test_st_missing$(EXE): tests/test_st_missing.c st.h json.h compat.h
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 

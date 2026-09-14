@@ -211,20 +211,32 @@ static double rss_gb(void) { struct rusage r; getrusage(RUSAGE_SELF, &r); return
  * budget automatico pari a cio' che il processo gia' tiene: la cache risulta
  * minima invece che sbagliata, e --ram (o --cap) resta la via esplicita. */
 static double mem_available_gb(void) {
-    double avail = 0.0;
-#ifdef __linux__
-    FILE *mi = fopen("/proc/meminfo", "r");
-    if (mi) {
-        char ln[256]; double v = 0;
-        while (fgets(ln, sizeof(ln), mi))
-            if (sscanf(ln, "MemAvailable: %lf", &v) == 1) { avail = v / 1e6; break; }
-        fclose(mi);
-    }
-#elif defined(_SC_AVPHYS_PAGES) && defined(_SC_PAGESIZE)
-    long pages = sysconf(_SC_AVPHYS_PAGES), page = sysconf(_SC_PAGESIZE);
-    if (pages > 0 && page > 0) avail = (double)pages * (double)page / 1e9;
+    /* compat.h's probe knows Linux (MemAvailable), macOS (host_statistics64)
+     * and Windows (GlobalMemoryStatusEx). The Linux-only version that lived
+     * here returned 0 on the other two, and 0 sized the expert cache to one
+     * slot per layer: 2.5x slower without --ram, on every Windows and macOS
+     * benchmark taken since (#1500). */
+    double avail = compat_mem_available_gb();
+    if (avail > 0.0) return avail;
+    /* Not measurable here: say so once and fall back to half the physical RAM
+     * where that is known, else to a small fixed budget, rather than to a
+     * cache that streams every expert from disk on every token. */
+    static int noted = 0;
+    double total = 0.0;
+#ifdef _WIN32
+    double a2 = 0.0; compat_meminfo(&total, &a2);
+#elif defined(_SC_PHYS_PAGES) && defined(_SC_PAGESIZE)
+    long pages = sysconf(_SC_PHYS_PAGES), page = sysconf(_SC_PAGESIZE);
+    if (pages > 0 && page > 0) total = (double)pages * (double)page / 1e9;
 #endif
-    return avail;
+    double fallback = total > 0.0 ? total * 0.5 : 8.0;
+    if (!noted) {
+        noted = 1;
+        fprintf(stderr, "[olmoe] could not measure available RAM on this platform; assuming %.1f GB "
+                        "(%s). Pass --ram <GB> to set the budget explicitly.\n",
+                fallback, total > 0.0 ? "half the physical RAM" : "a fixed default");
+    }
+    return fallback;
 }
 static float *falloc(int64_t n) { float *p = malloc(n*sizeof(float)); if(!p){fprintf(stderr,"OOM %ld\n",(long)n);exit(1);} return p; }
 
@@ -1523,6 +1535,12 @@ static void serve_hwinfo(Model *m) {
             if (sscanf(ln, "MemTotal: %lf", &v) == 1) rt = v/1e6;
             if (sscanf(ln, "MemAvailable: %lf", &v) == 1) ra = v/1e6;
         } fclose(mi); }
+    if (ra <= 0.0) ra = compat_mem_available_gb();   /* macOS, Windows: no /proc (#1500) */
+#ifdef _WIN32
+    if (rt <= 0.0) { double a2 = 0.0; compat_meminfo(&rt, &a2); }
+#elif defined(_SC_PHYS_PAGES) && defined(_SC_PAGESIZE)
+    if (rt <= 0.0) { long pg = sysconf(_SC_PHYS_PAGES), ps = sysconf(_SC_PAGESIZE); if (pg > 0 && ps > 0) rt = (double)pg * ps / 1e9; }
+#endif
     printf("HWINFO %d %.1f %.1f 0 0.0 %s|\n", cores, rt, ra, cpu[0] ? cpu : "unknown");
     fflush(stdout);
 }
