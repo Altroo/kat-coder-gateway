@@ -1,0 +1,101 @@
+Raw per-run engine stderr, filtered to the lines this experiment
+rests on (phase breakdown, mirror split, token verdict). The arms
+interleave P / M3 / D0 / M2; MP was run separately against the same
+reference. Full logs are attached to the PR.
+
+--- P run 1/3  (ab_final_P_0.err) ---
+Matching tokens: 16/16
+[v41] prefill 25 tokens in 144.55s | decode 16 in 254.02s (0.06 tok/s)
+[v41] experts: 4956 hits, 5274 misses, 99154.6 MB read | disk 20.44s, expert matmul 190.64s, attention 111.50s, engram 0.79s
+
+--- P run 2/3  (ab_final_P_1.err) ---
+Matching tokens: 16/16
+[v41] prefill 25 tokens in 142.95s | decode 16 in 251.48s (0.06 tok/s)
+[v41] experts: 4956 hits, 5274 misses, 99154.6 MB read | disk 20.29s, expert matmul 188.98s, attention 109.95s, engram 0.80s
+
+--- P run 3/3  (ab_final_P_2.err) ---
+Matching tokens: 16/16
+[v41] prefill 25 tokens in 143.33s | decode 16 in 249.85s (0.06 tok/s)
+[v41] experts: 4956 hits, 5274 misses, 99154.6 MB read | disk 20.27s, expert matmul 186.93s, attention 110.52s, engram 0.80s
+
+--- M3 run 1/3  (ab_final_M3_0.err) ---
+[MIRROR] 2 replicas, split COLI_DISK_WEIGHTS: primary 50% mirror 50%
+Matching tokens: 16/16
+[v41] prefill 25 tokens in 144.35s | decode 16 in 249.62s (0.06 tok/s)
+[v41] experts: 4956 hits, 5274 misses, 99154.6 MB read | disk 17.00s, expert matmul 189.02s, attention 111.48s, engram 0.77s
+MIRROR: primary 49.20 GB (15702 reads) | mirror1 49.95 GB (15942 reads) — 50% of expert bytes from the mirrors
+
+--- M3 run 2/3  (ab_final_M3_1.err) ---
+[MIRROR] 2 replicas, split COLI_DISK_WEIGHTS: primary 50% mirror 50%
+Matching tokens: 16/16
+[v41] prefill 25 tokens in 141.86s | decode 16 in 249.04s (0.06 tok/s)
+[v41] experts: 4956 hits, 5274 misses, 99154.6 MB read | disk 17.05s, expert matmul 187.93s, attention 110.64s, engram 0.78s
+MIRROR: primary 49.20 GB (15702 reads) | mirror1 49.95 GB (15942 reads) — 50% of expert bytes from the mirrors
+
+--- M3 run 3/3  (ab_final_M3_2.err) ---
+[MIRROR] 2 replicas, split COLI_DISK_WEIGHTS: primary 50% mirror 50%
+Matching tokens: 16/16
+[v41] prefill 25 tokens in 140.41s | decode 16 in 249.46s (0.06 tok/s)
+[v41] experts: 4956 hits, 5274 misses, 99154.6 MB read | disk 17.10s, expert matmul 188.06s, attention 109.57s, engram 0.78s
+MIRROR: primary 49.20 GB (15702 reads) | mirror1 49.95 GB (15942 reads) — 50% of expert bytes from the mirrors
+
+--- D0 run 1/3  (ab_final_D0_0.err) ---
+Matching tokens: 16/16
+[v41] prefill 25 tokens in 150.03s | decode 16 in 255.97s (0.06 tok/s)
+[v41] experts: 4956 hits, 5274 misses, 99154.6 MB read | disk 32.10s, expert matmul 187.96s, attention 110.64s, engram 0.78s
+
+--- D0 run 2/3  (ab_final_D0_1.err) ---
+Matching tokens: 16/16
+[v41] prefill 25 tokens in 149.51s | decode 16 in 253.58s (0.06 tok/s)
+[v41] experts: 4956 hits, 5274 misses, 99154.6 MB read | disk 31.06s, expert matmul 187.69s, attention 110.64s, engram 0.78s
+
+--- D0 run 3/3  (ab_final_D0_2.err) ---
+Matching tokens: 16/16
+[v41] prefill 25 tokens in 149.59s | decode 16 in 254.36s (0.06 tok/s)
+[v41] experts: 4956 hits, 5274 misses, 99154.6 MB read | disk 32.29s, expert matmul 187.38s, attention 109.66s, engram 0.77s
+
+--- M2 run 1/3  (ab_final_M2_0.err) ---
+[MIRROR] 2 replicas, split COLI_DISK_WEIGHTS: primary 0% mirror 100%
+Matching tokens: 16/16
+[v41] prefill 25 tokens in 144.41s | decode 16 in 252.77s (0.06 tok/s)
+[v41] experts: 4956 hits, 5274 misses, 99154.6 MB read | disk 20.51s, expert matmul 189.21s, attention 111.54s, engram 0.79s
+MIRROR: primary 0.32 GB (102 reads) | mirror1 98.83 GB (31542 reads) — 100% of expert bytes from the mirrors
+
+--- M2 run 2/3  (ab_final_M2_1.err) ---
+[MIRROR] 2 replicas, split COLI_DISK_WEIGHTS: primary 0% mirror 100%
+Matching tokens: 16/16
+[v41] prefill 25 tokens in 143.50s | decode 16 in 249.89s (0.06 tok/s)
+[v41] experts: 4956 hits, 5274 misses, 99154.6 MB read | disk 20.53s, expert matmul 187.37s, attention 110.39s, engram 0.79s
+MIRROR: primary 0.32 GB (102 reads) | mirror1 98.83 GB (31542 reads) — 100% of expert bytes from the mirrors
+
+--- M2 run 3/3  (ab_final_M2_2.err) ---
+[MIRROR] 2 replicas, split COLI_DISK_WEIGHTS: primary 0% mirror 100%
+Matching tokens: 16/16
+[v41] prefill 25 tokens in 141.53s | decode 16 in 250.51s (0.06 tok/s)
+[v41] experts: 4956 hits, 5274 misses, 99154.6 MB read | disk 20.50s, expert matmul 186.65s, attention 109.90s, engram 0.81s
+MIRROR: primary 0.32 GB (102 reads) | mirror1 98.83 GB (31542 reads) — 100% of expert bytes from the mirrors
+
+--- MP run 1/3  (ab_mp_MP_0.err) ---
+[MIRROR] probe: primary 4.38 GB/s | mirror 4.65 GB/s
+[MIRROR] 2 replicas, split measured: primary 48% mirror 52%
+Matching tokens: 16/16
+[v41] prefill 25 tokens in 140.86s | decode 16 in 247.87s (0.06 tok/s)
+[v41] experts: 4956 hits, 5274 misses, 99154.6 MB read | disk 18.87s, expert matmul 188.76s, attention 107.82s, engram 0.79s
+MIRROR: primary 47.94 GB (15300 reads) | mirror1 51.21 GB (16344 reads) — 52% of expert bytes from the mirrors
+
+--- MP run 2/3  (ab_mp_MP_1.err) ---
+[MIRROR] probe: primary 3.98 GB/s | mirror 4.75 GB/s
+[MIRROR] 2 replicas, split measured: primary 46% mirror 54%
+Matching tokens: 16/16
+[v41] prefill 25 tokens in 140.77s | decode 16 in 248.17s (0.06 tok/s)
+[v41] experts: 4956 hits, 5274 misses, 99154.6 MB read | disk 18.83s, expert matmul 188.86s, attention 107.98s, engram 0.78s
+MIRROR: primary 45.55 GB (14538 reads) | mirror1 53.60 GB (17106 reads) — 54% of expert bytes from the mirrors
+
+--- MP run 3/3  (ab_mp_MP_2.err) ---
+[MIRROR] probe: primary 3.92 GB/s | mirror 5.01 GB/s
+[MIRROR] 2 replicas, split measured: primary 44% mirror 56%
+Matching tokens: 16/16
+[v41] prefill 25 tokens in 140.28s | decode 16 in 245.26s (0.07 tok/s)
+[v41] experts: 4956 hits, 5274 misses, 99154.6 MB read | disk 17.14s, expert matmul 185.97s, attention 108.36s, engram 0.80s
+MIRROR: primary 44.07 GB (14064 reads) | mirror1 55.09 GB (17580 reads) — 56% of expert bytes from the mirrors
+

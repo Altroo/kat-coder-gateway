@@ -1,0 +1,59 @@
+{
+  "commit": "5df0e3590dadfe49569518016900c0e178ed1619",
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash, released checkpoint, 48 shards 510.3 GB, fp8 dense + fp4 experts, no conversion",
+  "command": "SNAP=/mnt/nvme0/DeepSeek-V4.1-Flash [ENV] ./deepseek_v41 8 /tmp/ref.json (25 prompt tokens, 16 generated, cap=8, page cache evicted per run)",
+  "prompt_hash": "79a5bcf37f1920a530cfee5ab7a484e00a1d6bb7f19d9a7418beaa53c14b454b",
+  "hardware": {
+    "cpu": "2x Intel Xeon Platinum 8555C, 52 cores/socket, 2 threads/core, 208 CPUs, 4 NUMA nodes",
+    "ram": "1007 GiB",
+    "storage": "nvme0n1 Samsung MZQL2960HCJR 894 GB ext4 noatime (/mnt/nvme0); md0 = RAID0 of 2x Samsung MZQLB7T6HMLA 7.6 TB ext4 (/mdr5); independent controllers",
+    "os": "Ubuntu 24.04, kernel 6.8.0-31-generic, gcc 13.3.0, -O3 -march=native -fopenmp"
+  },
+  "warmup_runs": 0,
+  "version": 1,
+  "hypothesis": "Serving the routed experts from a byte-identical copy on an independent controller as well as the primary raises the expert read rate. The split ratio is left to the engine's startup bandwidth probe in both arms, so the only changed key is the mirror itself.",
+  "changed_variables": [
+    "COLI_MODEL_MIRROR"
+  ],
+  "baseline": {
+    "config": {},
+    "samples": {
+      "tok_s": [
+        0.038763,
+        0.039144,
+        0.039252
+      ]
+    },
+    "median_tok_s": 0.039144,
+    "quality": {
+      "method": "token-exact vs a 16-token reference stream; the engine exits non-zero on any mismatch. tok_s is 16 generated tokens over the whole turn (READY to DONE), prefill included",
+      "passed": true
+    },
+    "evidence": {
+      "uri": "docs/experiments/dsv41-expert-io-2026-09-14-raw.txt, section 'P' (3 runs, the engine's own stderr)",
+      "sha256": "d14c7edbb19b55840c8967eb51e3abd9e683a22f7676ea0cabb9f263b4b238d5"
+    }
+  },
+  "trial": {
+    "config": {
+      "COLI_MODEL_MIRROR": "<dir holding a byte-identical copy>"
+    },
+    "samples": {
+      "tok_s": [
+        0.039696,
+        0.039692,
+        0.039938
+      ]
+    },
+    "median_tok_s": 0.039696,
+    "quality": {
+      "method": "token-exact vs a 16-token reference stream; the engine exits non-zero on any mismatch. tok_s is 16 generated tokens over the whole turn (READY to DONE), prefill included",
+      "passed": true
+    },
+    "evidence": {
+      "uri": "docs/experiments/dsv41-expert-io-2026-09-14-raw.txt, section 'MP' (3 runs, the engine's own stderr)",
+      "sha256": "c2e1931e7dff2531a38de623a5adebdc1a7ec78bc2f4222246272864d655e7e4"
+    }
+  },
+  "outcome": "improvement"
+}

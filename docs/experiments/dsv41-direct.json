@@ -1,0 +1,61 @@
+{
+  "commit": "5df0e3590dadfe49569518016900c0e178ed1619",
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash, released checkpoint, 48 shards 510.3 GB, fp8 dense + fp4 experts, no conversion",
+  "command": "SNAP=/mnt/nvme0/DeepSeek-V4.1-Flash [ENV] ./deepseek_v41 8 /tmp/ref.json (25 prompt tokens, 16 generated, cap=8, page cache evicted per run)",
+  "prompt_hash": "79a5bcf37f1920a530cfee5ab7a484e00a1d6bb7f19d9a7418beaa53c14b454b",
+  "hardware": {
+    "cpu": "2x Intel Xeon Platinum 8555C, 52 cores/socket, 2 threads/core, 208 CPUs, 4 NUMA nodes",
+    "ram": "1007 GiB",
+    "storage": "nvme0n1 Samsung MZQL2960HCJR 894 GB ext4 noatime (/mnt/nvme0); md0 = RAID0 of 2x Samsung MZQLB7T6HMLA 7.6 TB ext4 (/mdr5); independent controllers",
+    "os": "Ubuntu 24.04, kernel 6.8.0-31-generic, gcc 13.3.0, -O3 -march=native -fopenmp"
+  },
+  "warmup_runs": 0,
+  "version": 1,
+  "hypothesis": "Reading the routed experts with O_DIRECT instead of through the page cache raises the expert read rate, because the engine already fadvise(DONTNEED)s each expert after reading it and a buffered read therefore copies the bytes twice and keeps nothing.",
+  "changed_variables": [
+    "V41_DIRECT"
+  ],
+  "baseline": {
+    "config": {
+      "V41_DIRECT": "0"
+    },
+    "samples": {
+      "tok_s": [
+        0.038093,
+        0.038321,
+        0.03828
+      ]
+    },
+    "median_tok_s": 0.03828,
+    "quality": {
+      "method": "token-exact vs a 16-token reference stream; the engine exits non-zero on any mismatch. tok_s is 16 generated tokens over the whole turn (READY to DONE), prefill included",
+      "passed": true
+    },
+    "evidence": {
+      "uri": "docs/experiments/dsv41-expert-io-2026-09-14-raw.txt, section 'D0' (3 runs, the engine's own stderr)",
+      "sha256": "d5ed80386c99d1cac9c98a0318e4543dbffd7aac3656c2f1fcd78bbc2d05f8cf"
+    }
+  },
+  "trial": {
+    "config": {
+      "V41_DIRECT": "1"
+    },
+    "samples": {
+      "tok_s": [
+        0.038763,
+        0.039144,
+        0.039252
+      ]
+    },
+    "median_tok_s": 0.039144,
+    "quality": {
+      "method": "token-exact vs a 16-token reference stream; the engine exits non-zero on any mismatch. tok_s is 16 generated tokens over the whole turn (READY to DONE), prefill included",
+      "passed": true
+    },
+    "evidence": {
+      "uri": "docs/experiments/dsv41-expert-io-2026-09-14-raw.txt, section 'P' (3 runs, the engine's own stderr)",
+      "sha256": "d14c7edbb19b55840c8967eb51e3abd9e683a22f7676ea0cabb9f263b4b238d5"
+    }
+  },
+  "outcome": "improvement"
+}
