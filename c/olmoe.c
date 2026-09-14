@@ -1525,7 +1525,8 @@ static int serve_one(Model *m, Tok *T, SReq *q, int ctx_cap) {
      * zero: this engine has no separate wait phase. */
     double disk_s = (double)(__atomic_load_n(&m->disk_ns, __ATOMIC_RELAXED) - disk0) / 1e9;
     double matmul_s = (g_prof_moe_s - moe0) - disk_s; if (matmul_s < 0.0) matmul_s = 0.0;
-    printf("PROF %.3f %d %d %.3f 0.0 %.3f %.3f %.3f %lld\n", dt, np, gen, disk_s, matmul_s,
+    /* microsecond resolution: see qwen36.c, same reason (a sub-millisecond tiny turn read as unmeasured) */
+    printf("PROF %.6f %d %d %.6f 0.0 %.6f %.6f %.6f %lld\n", dt, np, gen, disk_s, matmul_s,
            g_prof_attn_s - attn0, g_prof_head_s - head0, g_prof_forwards - fwd0);
     fflush(stdout);
     serve_hits(m);
