@@ -1583,8 +1583,20 @@ def message_with_images(text):
     if rest:
         content.append({"type":"text","text":rest})
     for path in found:
-        content.append({"type":"image_url","image_url":{"url":path}})
+        # The file is read HERE, with the user's own rights, and travels as a
+        # data: URI. The server no longer opens local paths for a client (an
+        # inference client is not the operator; with the API key it could read
+        # any file the server process can), unless the operator sets
+        # COLI_IMAGE_ROOT, and a path sent by mistake would be refused.
+        content.append({"type":"image_url","image_url":{"url":image_data_uri(path)}})
     return content
+
+def image_data_uri(path):
+    """base64 data: URI of a local image, MIME from the extension (PNG when unknown)."""
+    import base64, mimetypes
+    mime = mimetypes.guess_type(path)[0] or "image/png"
+    with open(path, "rb") as handle:
+        return f"data:{mime};base64," + base64.b64encode(handle.read()).decode("ascii")
 
 
 def cmd_chat(a):
