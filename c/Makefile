@@ -1233,6 +1233,9 @@ tests/test_st$(EXE): tests/test_st.c st.h json.h compat.h
 tests/test_st_mirror$(EXE): tests/test_st_mirror.c st.h json.h compat.h
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 
+tests/test_st_overlay$(EXE): tests/test_st_overlay.c st.h json.h compat.h
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+
 tests/test_tier$(EXE): tests/test_tier.c tier.h
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 
