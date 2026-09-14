@@ -1,7 +1,7 @@
 {
   "version": 1,
   "hypothesis": "Sizing the OpenMP team to physical cores instead of one thread per logical CPU raises throughput on an SMT host, because ~720 parallel regions per decoded token make the per-region barrier a first-order cost rather than a rounding error.",
-  "commit": "fed625f05ed2befe89d096966b3fce88467908af",
+  "commit": "941d5fe944a67ee3bed66a3c9c552199773b39ae",
   "model": "deepseek-ai/DeepSeek-V4.1-Flash, released checkpoint, 48 shards, 510.3 GB, fp8 dense + fp4 experts, no conversion",
   "command": "SNAP=/mnt/nvme0/DeepSeek-V4.1-Flash ./deepseek_v41 8 /tmp/ref.json (25 prompt tokens, 16 generated, cap=8, page cache evicted per run; no OMP_NUM_THREADS and no COLI_NO_OMP_TUNE set)",
   "prompt_hash": "79a5bcf37f1920a530cfee5ab7a484e00a1d6bb7f19d9a7418beaa53c14b454b",
