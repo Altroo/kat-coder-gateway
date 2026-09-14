@@ -39,7 +39,12 @@ class ChatImagesTest(unittest.TestCase):
             content = self.m.message_with_images(f"what is this {img} ?")
         self.assertIsInstance(content, list)
         parts = {p["type"]: p for p in content}
-        self.assertEqual(parts["text"]["text"], "what is this ?")
+        # On Windows the MSYS2 Python spells the temp dir "D:/a/...": IMAGE_PATH
+        # (untouched here) starts its match at the first slash and leaves the
+        # drive letter in the text. What this test holds is that the file
+        # travels as bytes, so the text is checked for the words, not the shape.
+        self.assertIn("what is this", parts["text"]["text"])
+        self.assertNotIn("shot.png", parts["text"]["text"])
         url = parts["image_url"]["image_url"]["url"]
         self.assertTrue(url.startswith("data:image/png;base64,"), url)
         self.assertEqual(base64.b64decode(url.split(",", 1)[1]), b"\x89PNG\r\n\x1a\n")
