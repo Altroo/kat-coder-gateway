@@ -66,6 +66,17 @@ PIN=stats.txt PIN_GB=20 ./coli chat        # scale PIN_GB to your free RAM
 ./coli bench
 ```
 
+**A GPU-backend datapoint needs a correctness line next to its throughput.**
+Throughput cannot tell a wrong backend from a fast one: a kernel that computes
+garbage runs at full speed and reports no error. Measured in #1502 on gfx1151, a
+HIP build produced perplexity 727 against 7.0 for the same model on the same
+machine, at identical tok/s, and only a quality check caught it. So for any row
+taken with CUDA, HIP, Metal or Vulkan engaged, record one of: a greedy output
+byte-identical to the CPU path on the same prompt (what colibri's tiers promise,
+and what `coli run` with the backend off gives you in one more command), a
+`./coli bench` score within noise of the CPU run, or a perplexity on a fixed text
+alongside the CPU figure. A row without it is a speed claim, not a datapoint.
+
 The default datapoint measures serving behavior, not repeated startup: the same
 engine process and cache slot are used for one cold request, one repeated-prompt
 warm request, and four requests drawn in fixed order from a diverse built-in
