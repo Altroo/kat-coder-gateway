@@ -381,7 +381,10 @@ so put it on a disk with the room, ideally a fast one:
 > fixed those controlled per-row A/Bs, but it is not a general repetition or
 > EOS-starvation guard. The MTP head must also be **int8, not int4**
 > (int4 → 0% draft acceptance, [#8](https://github.com/JustVugg/colibri/issues/8)):
-> `ls -l <model>/out-mtp-*` — int8 (correct) is `3527131672 / 5366238584 / 1065950496`.
+> `ls -l <model>/out-mtp-*` — int8 (correct) is `3527131672 / 5366238584 / 1065950496`
+> as three files, or a single `out-mtp-00000.safetensors` of `9959321520` bytes
+> (the current upload of the recommended container ships it as one file: same
+> int8 tensors, 777 of them at one byte per element).
 
 Or convert from the FP8 source yourself — one resumable command that never needs
 the full 756 GB on disk at once:
