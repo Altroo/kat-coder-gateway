@@ -69,26 +69,18 @@ brightness is routing heat, and every expert routed in a turn flashes white. Hov
 as a 3-D galaxy — 13,260 characterised experts, 1,041 replicated specialists clustering by topic
 (poetry, law, Chinese, SQL…). Position is measured routing affinity, not a learned embedding. Drag to spin.</em></p>
 
-## The research mission
+## Hardware-aware inference
 
-With Colibrì, private frontier model access is not limited by availability of hyperscaler-class hardware.
+Colibrì is designed to run large models on commodity systems.
 
-With its multitiering features Colibrì **removes proprietary hardware dependencies aggressively 
-optimizing functional inference engine pipelines**.
+Its tiered runtime moves weights between storage, RAM, and VRAM; overlaps compute
+and I/O; and uses sparsity and reuse to reduce work. Changes are evaluated on
+end-to-end throughput, output correctness, and quality rather than isolated
+microbenchmarks. End-to-end runs also measure latency, memory use, and cost.
 
-Our operational mission includes changing how weights are represented and moved, deciding what
-lives in VRAM, RAM, or storage, overlapping heterogeneous compute, reducing
-launch and synchronization overhead, exploiting sparsity and reuse, and testing
-new decoding algorithms. Nothing is protected merely because it is conventional;
-nothing is adopted merely because a microbenchmark looks fast. The deciding
-result is end-to-end inference on real machines, with correctness and quality
-measured alongside throughput, latency, memory, and cost.
-
-The practical consequence is **accessibility**: run a 744B-parameter model on
-hardware you already own, watch every expert fire in real time, and change the
-code that does it. Not renting intelligence behind an API — *holding* it:
-probing it, measuring it, improving it. The engine is deliberately small enough
-that the next useful optimization can come from anyone willing to measure it.
+The engine can run a 744B-parameter model on local hardware and exposes routing
+and memory behavior for inspection. Its small C codebase keeps those experiments
+close to the runtime.
 
 ## Core techniques and measured findings
 

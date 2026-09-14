@@ -5216,6 +5216,20 @@ static int router_best_or_fallback(int best, int kk, int E, int layer){
     return kk<E ? kk : 0;
 }
 
+/* Select distinct router choices in-place. Marking a selected score removes the
+ * O(K) prefix scan from every pick while preserving the existing fallback for
+ * non-finite logits. `choice` is rebuilt for each routed row, so mutating it is
+ * local to this selection pass. */
+static void router_select_topk(float *choice, int E, int K, int *idx, int layer){
+    for(int kk=0;kk<K;kk++){
+        int best=-1; float bv=-1e30f;
+        for(int e=0;e<E;e++) if(choice[e]>bv){ bv=choice[e]; best=e; }
+        best=router_best_or_fallback(best,kk,E,layer);
+        idx[kk]=best;
+        choice[best]=-1e30f;
+    }
+}
+
 #ifdef COLI_METAL
 /* Rotate the Metal-staged gate/up input rows for fmt=6 (Q^T x). Duplicate rows
  * (same source s) are copied from the first rotated instance: O(p^2) scan, p<=65. */
@@ -5342,24 +5356,16 @@ static void moe(Model *m, Layer *l, int layer, float *x, int S, float *out, int 
             if(g_route_p>0.f && g_route_p<1.f){
                 /* Cumulative-mass variant: grow M until mass covers ROUTE_P. */
                 int Mmax=g_route_m>Ksel*4?g_route_m:Ksel*4; if(Mmax>E) Mmax=E; if(Mmax>rank_cap) Mmax=rank_cap;
-                for(int kk=0;kk<Mmax;kk++){ int best=-1; float bv=-1e30f;
-                    for(int e=0;e<E;e++){ int tk=0; for(int j=0;j<kk;j++) if(rank_buf[j]==e){tk=1;break;}
-                        if(!tk && choice[e]>bv){bv=choice[e];best=e;} }
-                    best=router_best_or_fallback(best,kk,E,layer);
-                    rank_buf[kk]=best; rank_w[kk]=logit[best];
-                }
+                router_select_topk(choice,E,Mmax,rank_buf,layer);
+                for(int kk=0;kk<Mmax;kk++) rank_w[kk]=logit[rank_buf[kk]];
                 float tot=1e-20f; for(int kk=0;kk<Mmax;kk++) tot+=rank_w[kk]>0?rank_w[kk]:0;
                 float cum=0; Mwin=Ksel;
                 for(int kk=0;kk<Mmax;kk++){ cum+=rank_w[kk]>0?rank_w[kk]:0;
                     if(cum>=g_route_p*tot){ Mwin=kk+1; break; } Mwin=kk+1; }
                 if(Mwin<Ksel) Mwin=Ksel;
             } else {
-                for(int kk=0;kk<Mwin;kk++){ int best=-1; float bv=-1e30f;
-                    for(int e=0;e<E;e++){ int tk=0; for(int j=0;j<kk;j++) if(rank_buf[j]==e){tk=1;break;}
-                        if(!tk && choice[e]>bv){bv=choice[e];best=e;} }
-                    best=router_best_or_fallback(best,kk,E,layer);
-                    rank_buf[kk]=best; rank_w[kk]=logit[best];
-                }
+                router_select_topk(choice,E,Mwin,rank_buf,layer);
+                for(int kk=0;kk<Mwin;kk++) rank_w[kk]=logit[rank_buf[kk]];
             }
             int J=g_route_j; if(J<0) J=0; if(J>Ksel) J=Ksel;
             int chosen=0;
@@ -5423,12 +5429,8 @@ static void moe(Model *m, Layer *l, int layer, float *x, int S, float *out, int 
                 m->route_kl_sum+=kl; m->route_kl_n++;
             }
         } else {
-            for(int kk=0;kk<Ksel;kk++){ int best=-1; float bv=-1e30f;
-                for(int e=0;e<E;e++){ int tk=0; for(int j=0;j<kk;j++) if(idx[j]==e){tk=1;break;}
-                    if(!tk && choice[e]>bv){bv=choice[e];best=e;} }
-                best=router_best_or_fallback(best,kk,E,layer);
-                idx[kk]=best; w[kk]=logit[best];
-            }
+            router_select_topk(choice,E,Ksel,idx,layer);
+            for(int kk=0;kk<Ksel;kk++) w[kk]=logit[idx[kk]];
             if(g_route_agree){
                 m->route_agree_hit+=(uint64_t)Ksel;
                 m->route_agree_tot+=(uint64_t)Ksel;
