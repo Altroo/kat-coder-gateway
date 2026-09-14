@@ -5,12 +5,32 @@ Two changes to the V4.1 engine are measured here: reading the routed experts wit
 drive. Both are about the same fact -- an expert is read once and never wanted again --
 and both are ports of mechanisms the V4 and GLM engines already had.
 
-The short version, and the reason this record exists even though the mechanism ports
-were straightforward: **on this host the engine is not bound by the device.** Disk is
-5% of the turn. `O_DIRECT` takes a third off that 5% and the multi-drive split takes
-a sixth, and after both the turn is **2.3% and 1.4%** shorter respectively. The expert
-matmul and the attention are the other 74%. Any I/O proposal for this engine has to be
-read against that ratio.
+> ## Correction, 2026-09-15: the A/B below ran in the wrong regime
+>
+> Everything in this record was first measured with the engine's default OpenMP
+> team, which on this host is one thread per logical CPU (208). That configuration
+> is pathological for an engine whose per-region work is a few thousand rows:
+> **93% of cycles land inside libgomp**, and the turn takes 409.9 s instead of
+> 43.5 s. See `dsv41-omp-team-2026-09-15.md` and PR #1517.
+>
+> Measured with the team sized (`OMP_NUM_THREADS=32`), the same `O_DIRECT` change
+> is not worth 2.3% -- it is worth **-52% of the disk phase and +63% of decode
+> throughput**, and the disk phase is then 16.0 s of a ~34 s turn rather than 5% of
+> it. Section ["The same A/B with the team
+> sized"](#the-same-ab-with-the-team-sized) has those numbers.
+>
+> The 208-thread numbers are kept because they are real measurements of a real
+> configuration, and because the ratio they produce is exactly the trap: the phase
+> breakdown looks entirely reasonable either way. But the conclusion they were used
+> for -- that I/O cannot matter for this engine -- was wrong, and the device
+> characterisation below is the part that survives unchanged.
+
+The short version, with the correction folded in: **the value of this work depends
+entirely on whether the CPU side has been put in order first.** With the shipped
+thread count the disk is 5% of the turn and neither change is worth 2.5%; with the
+team sized the engine reaches the device's own ceiling and the same changes are worth
+tens of percent. That is not a contradiction, it is a precondition, and it is the
+reason this record now leads with a correction rather than a table.
 
 ## Machine
 
@@ -21,7 +41,7 @@ read against that ratio.
 | Storage A | Samsung MZQL2960HCJR (`nvme0n1`, 894 GB), ext4, `noatime`, mounted `/mnt/nvme0` |
 | Storage B | 2x Samsung MZQLB7T6HMLA (`nvme1n1`, `nvme3n1`, 7.6 TB each) in RAID0 (`md0`), ext4, `/mdr5` |
 | Storage C | yrfs network filesystem (`/ky200t`) -- staging only, never measured |
-| commit | `5df0e35` (`feat/dsv41-expert-io`, based on `dev` at `1efb7c8`) |
+| commit | `8eb197e5` (`feat/dsv41-expert-io`, rebased onto `dev` at `f4aff21`) |
 | OS / toolchain | Ubuntu 24.04, kernel 6.8.0-31-generic, gcc 13.3.0, `-O3 -march=native -fopenmp` |
 
 A and B are independent controllers, which is what the two-drive question needs. B is
@@ -144,6 +164,48 @@ bytes; the difference is what backs them. `M2`'s two drives are a RAID0 pair beh
 one `md0` device, and serving all reads from it is no faster than one `nvme0n1`.
 Adding a second *filesystem* to read from is what helped.
 
+## The same A/B with the team sized
+
+The arms above were re-run with `OMP_NUM_THREADS=32` -- the team size that puts the CPU
+side in order, now the shipped behaviour via PR #1517. Same container, same 25-token
+prompt, same 16 reference ids, cold cache, arms interleaved, 3 runs each, and again
+**every run token-exact 16/16**.
+
+| arm | expert disk | rate | whole turn | decode | vs `P` |
+|---|---:|---:|---:|---:|---:|
+| `P` one NVMe | 16.07 s | 6.17 GB/s | 37.2 s | 12.86 s | -- |
+| `P0` split ratio set, no mirror (inert) | 16.10 s | 6.16 GB/s | 38.1 s | 13.0 s | +2% |
+| `M3` mirror, second controller | **12.66 s** | **7.83 GB/s** | **34.0 s** | **11.00 s** | disk -21%, decode +17% |
+| `MP` mirror, startup probe picks the split | 13.44 s | 7.38 GB/s | 36.3 s | 12.19 s | disk -16%, decode +5% |
+| `M2` mirror, both copies behind one RAID0 | 16.36 s | 6.06 GB/s | 37.9 s | 12.96 s | +2%, i.e. nothing |
+| `D0` buffered reads | 31.14 s | 3.18 GB/s | 52.7 s | 21.01 s | disk +94%, decode -39% |
+
+Per-run disk times: `P` 15.95 / 16.09 / 16.07 s, `M3` 12.55 / 12.66 / 12.76 s,
+`M2` 16.36 / 16.38 / 16.32 s, `MP` 12.81 / 13.44 / 13.72 s,
+`D0` 31.14 / 32.61 / 26.28 s (the last `D0` run is an outlier; the median is used
+throughout). `P0` exists so the mirror can be compared as one variable: it sets the
+same `COLI_DISK_WEIGHTS=1,1` as `M3` with no mirror registered, where the ratio is
+inert, so `P0` and `M3` differ in exactly `COLI_MODEL_MIRROR`.
+
+Everything the earlier section said changes. `O_DIRECT` is worth **-48% of the disk
+phase and +63% of the decode rate**; the split is worth **-21% and +17%**; and **the
+engine now reaches the device's own ceiling** -- 6.17 GB/s against the 6.34 GB/s
+`iobench` measures one `nvme0n1` at depth 4, which is what the corrected phase
+breakdown means: the disk is 16.1 s of a 37.2 s turn, not 5% of it.
+
+`M3` clearing that ceiling at 7.83 GB/s is the other half of the result: 7.83 is above
+what one device can deliver, so the split is genuinely using two. And it is still
+**two filesystems on independent controllers** that matter, not two drives -- `M2`
+serves every byte from the `md0` RAID0 pair and is indistinguishable from one NVMe.
+The mechanism the 208-thread section inferred is confirmed here with the CPU side out
+of the way, which is the only reason the 208-thread numbers could not show it.
+
+The probe arm (`MP`) lands between the two: it picks a split that drifts a few percent
+run to run (52/52/51% of bytes to the mirror, disk 12.81 / 13.44 / 13.72 s) and gets
+part of the pinned split's benefit with more variance. On a pair of drives that are
+actually equal, pinning `1,1` is the better move -- the docs already recommend that
+without saying why, and the 208-thread runs said the opposite for the wrong reason.
+
 ## Why: the device was never the limit
 
 `c/iobench`, 5.6 MB blocks (one weight matrix), O_DIRECT, caches evicted, one thread
@@ -175,11 +237,13 @@ was measured on a different device.
 
 ## What this does not show
 
-- **Not a refutation of hypothesis #2.** It is a boundary condition. The docs'
-  measurement of this engine is on a host where disk (10.4 s) exceeds matmul (7.6 s);
-  there, halving the disk time is worth far more than it is here. The claim this
-  record supports is narrower and checkable: *when the host has enough cores that
-  compute dominates, independent device bandwidth cannot turn into decode speed.*
+- **It confirms hypothesis #2, and it shows what the hypothesis was missing.** The
+  README's premise -- that independent drives can turn into decode speed -- holds here
+  (7.83 GB/s against a 6.34 GB/s single-device ceiling, -21% series, +17% decode), but
+  *only* once the CPU side is not the bottleneck. The original phrasing is a
+  conditional that reads like an unconditional, and the condition is cheap to state
+  and easy to get wrong: it is not enough that the host has several drives, the engine
+  has to be able to need them.
 - **Not a claim about `O_DIRECT` in general.** The project already documents it as
   drive-dependent (QLC/DRAM-less drives behave differently). One device class was
   measured.
@@ -213,6 +277,14 @@ The container was then checked against the upstream file manifest, size for size
 container a second time on an independent controller -- 510 GB duplicated for the
 duration of the runs, which is precisely the cost `COLI_MODEL_DIRS` exists to avoid.
 
+Two thread configurations are reported. The first set of runs used the engine's
+default team (208 logical CPUs) because that is what shipped at the time; the second
+set sets `OMP_NUM_THREADS=32`, which is what the CPU side needs on this host and what
+PR #1517 now does by default (it lands on 104 physical cores; 32 is faster still here
+and is why the override is the documented escape hatch). **The two sets disagree, and
+the second one is the one to use** -- the first is kept because the disagreement is
+the finding.
+
 One turn, one arm:
 
 ```sh
@@ -220,6 +292,9 @@ make -C c deepseek_v41
 SNAP=/mnt/nvme0/DeepSeek-V4.1-Flash ./c/deepseek_v41 8 ref.json
 SNAP=/mnt/nvme0/DeepSeek-V4.1-Flash COLI_MODEL_MIRROR=<copy> COLI_DISK_WEIGHTS=1,1 \
     ./c/deepseek_v41 8 ref.json
+# and with the CPU side in order:
+OMP_NUM_THREADS=32 SNAP=/mnt/nvme0/DeepSeek-V4.1-Flash COLI_MODEL_MIRROR=<copy> \
+    COLI_DISK_WEIGHTS=1,1 ./c/deepseek_v41 8 ref.json
 ```
 
 `ref.json` carries 25 prompt ids and the 16 reference ids; the engine prints the

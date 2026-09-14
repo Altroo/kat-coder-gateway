@@ -226,10 +226,39 @@ mirror: a mirror directory may copy any subset of the split's shards.
 
 The two mechanisms answer different questions. `COLI_MODEL_DIRS` asks whether the
 bytes can be *stored* across drives; `COLI_MODEL_MIRROR` asks whether they can be
-*read* from more than one place at once. On a host whose decode is not bound by the
-device -- which is what a many-core CPU makes of this engine -- the second one buys
-very little, and the measurement is in
+*read* from more than one place at once. With the CPU side in order -- the OpenMP team
+sized, which `c/coli` already does at launch -- the second one is worth a fifth of the
+expert disk phase and the engine reaches the device's own ceiling; the measurements,
+and the regime in which neither is worth anything, are in
 [the experiment record](experiments/dsv41-expert-io-2026-09-14.md).
+
+### The cheapest resident tier there is
+
+The expert cache has a floor that no cache size can move: a turn's *first* touch of
+each expert it routes. On the released checkpoint a 16-token turn touches 3,371
+distinct experts, and a cache of about 96 slots per layer already sees no capacity
+misses at all -- every miss left is a first read, and only having the bytes resident
+*before the turn starts* removes it.
+
+The engine cannot ask for that, but a filesystem can. Point a partial mirror at RAM:
+
+```sh
+# the 46 non-engram shards carry every routed expert and the dense weights
+mkdir -p /dev/shm/dsv41_ram
+cd <container> && ls model-*.safetensors | grep -v -E -- '-0004[78]-' \
+    | xargs cp -t /dev/shm/dsv41_ram/
+
+COLI_MODEL_MIRROR=/dev/shm/dsv41_ram COLI_DISK_WEIGHTS=1,1000 \
+    SNAP=<container> ./c/deepseek_v41 8 ref.json
+```
+
+Measured on the released checkpoint, 16-token turn, cold cache, `cap=8`: expert disk
+16.05 s -> **4.15 s** (6.19 -> 23.89 GB/s) and the turn 37.3 s -> **25.5 s**, -31.7%,
+token-exact. That is more than a cache four times its size buys -- `cap=384`, which
+holds all 289 GB of experts, still reads 63 GB and spends 11.3 s on disk -- because
+caching during a turn cannot remove a first read and residency before it can. It costs
+287 GiB of RAM for the duration, which is the whole trade; 1,000 is not magic, any
+weight that sends nearly every expert to the RAM copy will do.
 
 That needs the destination and the file offset to be block-aligned, and a safetensors
 range starts wherever the writer put it. The obvious fix is to bounce each transfer
