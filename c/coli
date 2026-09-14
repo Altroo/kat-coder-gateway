@@ -2086,6 +2086,41 @@ def checkpoint_family(repo):
         return None
 
 
+CONVERT_DEFAULT_REPO = "zai-org/GLM-5.2-FP8"
+
+def convert_output_refusal(out_dir):
+    """Why `coli convert --model out_dir` must not run, or None. A checkpoint
+    already living there is the tell: --model names the OUTPUT directory,
+    and a family that runs its official checkpoint as is needs no conversion
+    at all, which is the usual reason someone points convert at one."""
+    if not os.path.isdir(out_dir):
+        return None
+    try:
+        shards = [x for x in os.listdir(out_dir) if x.endswith(".safetensors")]
+    except OSError:
+        return None
+    has_config = os.path.isfile(os.path.join(out_dir, "config.json"))
+    if not shards and not has_config:
+        return None
+    what = f"{len(shards)} shard(s)" if shards else "a config.json"
+    family = None
+    if has_config:
+        try:
+            family = resolve_model(out_dir).descriptor
+        except (FamilyConfigError, UnknownFamilyError):
+            family = None
+    head = (f"{C.yel}{out_dir} already holds a checkpoint ({what}"
+            f"{', ' + family.display_name if family else ''}).{C.r}\n"
+            f"  --model is the OUTPUT directory of coli convert; the source is --repo <hf repo>.\n"
+            f"  Nothing was written.")
+    if family and not family.converter:
+        return (head + f"\n  {family.display_name} runs its official checkpoint as it is: no conversion needed.\n"
+                       f"  Point the engine at it: coli chat --model {out_dir}")
+    if family and family.converter:
+        return (head + f"\n  To convert shards already on disk, run the family's converter on them:\n"
+                       f"      python3 tools/{family.converter} --indir {out_dir} --outdir <new dir>")
+    return head + "\n  To convert into a fresh directory: coli convert --repo <hf repo> --model <new dir>"
+
 def cmd_convert(a):
     banner("convert")
     # here --model is the DESTINATION the converted weights are written to, not an
@@ -2093,6 +2128,16 @@ def cmd_convert(a):
     if not a.model:
         sys.exit(f"{C.yel}no output directory given.{C.r}\n"
                  f"  --model <dir> is where the converted model is written")
+    # A support case ran `coli convert --model <dir of a downloaded Qwen3.8>`,
+    # read --model as "the model to convert", and watched coli start fetching
+    # the default repo (GLM-5.2) INTO that directory. --model is the output:
+    # refuse to write into a directory that already holds a checkpoint, and
+    # say what the user most likely wanted instead.
+    refusal = convert_output_refusal(a.model)
+    if refusal:
+        sys.exit(refusal)
+    if a.repo is None:
+        a.repo = CONVERT_DEFAULT_REPO
     # python con torch/safetensors: l'ambiente del progetto se c'e', altrimenti quello corrente
     py = project_python()
 
@@ -2303,7 +2348,10 @@ def main():
         _cache_root = os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache"))
     _bench_cache = os.path.join(_cache_root, "colibri", "bench")
     pb.add_argument("--data",default=_bench_cache)
-    pc=sub.add_parser("convert", parents=[common]); pc.add_argument("--repo",default="zai-org/GLM-5.2-FP8")
+    pc=sub.add_parser("convert", parents=[common])
+    pc.add_argument("--repo",default=None,
+                    help="HF repo to download and convert (default zai-org/GLM-5.2-FP8). "
+                         "--model is the OUTPUT directory, not a checkpoint to convert.")
     # default=None e non il valore: cosi' e' argparse a dire se l'opzione e'
     # stata SCRITTA (--ebits 3, --ebits=3, o abbreviata), e cmd_convert puo'
     # rifiutarla su un convertitore che non la prende invece di ignorarla.
