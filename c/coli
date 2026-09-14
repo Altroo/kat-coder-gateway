@@ -1328,6 +1328,38 @@ def server_probe(base, api_key=None, timeout=1.5):
     except Exception:
         return None
 
+# ---- generation statistics for the chat footer (#1475) ----------------------
+# Measurement and rendering apart: gen_stats() counts (exact completion tokens
+# from the server's usage block when it sends one, the historical chars/4
+# estimate otherwise), render_gen_stats() lays it out for one of three modes.
+# The private-engine chat already prints the engine's own exact counters; the
+# attached path is where the estimate lived and where tok/s was missing.
+CHAT_STATS_MODES = ("full", "compact", "off")
+
+def chat_stats_mode(a):
+    mode = getattr(a, "stats", None) or os.environ.get("COLI_CHAT_STATS", "full")
+    return mode if mode in CHAT_STATS_MODES else "full"
+
+def gen_stats(reply_text, elapsed, exact_tokens=None, interrupted=False):
+    exact = isinstance(exact_tokens, int) and not isinstance(exact_tokens, bool) and exact_tokens >= 0
+    tokens = exact_tokens if exact else len(reply_text) // 4
+    tps = tokens / elapsed if elapsed > 0 else None
+    return {"tokens": tokens, "exact": exact, "elapsed": elapsed, "tps": tps,
+            "interrupted": bool(interrupted)}
+
+def render_gen_stats(st, mode):
+    """'' for off; otherwise the footer body, without the box glyph or colour:
+    full    ~370 tok · 313s · ~1.18 tok/s   (372 tok · 313s · 1.19 tok/s when exact)
+    compact ~370 tok · ~1.18 tok/s
+    plus ' · ⏹ interrupted' when the answer was cut short."""
+    if mode == "off": return ""
+    approx = "" if st["exact"] else "~"
+    parts = [f"{approx}{st['tokens']} tok"]
+    if mode == "full": parts.append(f"{st['elapsed']:.0f}s")
+    if st["tps"] is not None: parts.append(f"{approx}{st['tps']:.2f} tok/s")
+    if st["interrupted"]: parts.append("⏹ interrupted")
+    return " · ".join(parts)
+
 def chat_attached(a, base, model_id):
     """The chat REPL over HTTP against a running `coli serve`.
 
@@ -1364,7 +1396,8 @@ def chat_attached(a, base, model_id):
         # motore che streamma gli esperti da disco, "max" vuol dire centinaia
         # di token di riflessione prima della prima parola di risposta.
         request = {"model":model_id,"messages":msgs,"stream":True,
-                   "max_tokens":ngen_for(a,interactive=True)}
+                   "max_tokens":ngen_for(a,interactive=True),
+                   "stream_options":{"include_usage":True}}   # exact completion_tokens in the last chunk
         if getattr(a,"effort",None): request["reasoning_effort"]=a.effort
         if getattr(a,"think",None) is not None: request["enable_thinking"]=a.think
         body=json.dumps(request).encode()
@@ -1374,6 +1407,7 @@ def chat_attached(a, base, model_id):
         print(f"\n  {C.teal}◆ colibri{C.r}")
         sp=Spinner("thinking…"); sp.start()
         md=MDStream("  "); reply=[]; first=True; t0=time.time(); interrupted=False; think_open=False
+        exact_tokens=None
         try:
             with urllib.request.urlopen(req) as r:
                 for raw in r:
@@ -1383,6 +1417,9 @@ def chat_attached(a, base, model_id):
                     if data=="[DONE]": break
                     try: ev=json.loads(data)
                     except ValueError: continue
+                    usage=ev.get("usage")
+                    if isinstance(usage,dict) and isinstance(usage.get("completion_tokens"),int):
+                        exact_tokens=usage["completion_tokens"]
                     for ch in ev.get("choices",[]):
                         d=ch.get("delta",{})
                         rtxt=d.get("reasoning_content")
@@ -1436,8 +1473,9 @@ def chat_attached(a, base, model_id):
         if reply: msgs.append({"role":"assistant","content":"".join(reply)})
         else: msgs.pop()                              # turno vuoto: non sporcare la history
         el=time.time()-t0
-        note=" · ⏹ interrupted" if interrupted else ""
-        print(f"\r  {C.dgray}└─ ~{len(''.join(reply))//4} tok · {el:.0f}s{note}{C.r}\n")
+        footer=render_gen_stats(gen_stats("".join(reply), el, exact_tokens, interrupted), chat_stats_mode(a))
+        if footer: print(f"\r  {C.dgray}└─ {footer}{C.r}\n")
+        else: print()
     print(f"  {C.dim}goodbye — the engine keeps running for the next chat 🐦{C.r}")
 
 def kv_resume_notice(model_dir):
@@ -1714,7 +1752,10 @@ def cmd_chat(a):
             sp2.stop()
             if st is None: engine_diag(p, errlog); break
             el=time.time()-t0
-            if st.get("tok"):
+            if st.get("tok") and chat_stats_mode(a) == "off":
+                if st.get("interrupted"): print(f"  {C.yel}⏹ interrupted; type :more to continue the response{C.r}")
+                print()
+            elif st.get("tok"):
                 print(f"\r  {C.dgray}└─ {st['tok']} tok · {st['tps']:.2f} tok/s · hit {st['hit']:.0f}% · RSS {st['rss']:.1f} GB · {el:.0f}s{C.r}")
                 if st.get("interrupted"):
                     print(f"  {C.yel}⏹ interrupted; type :more to continue the response{C.r}")
@@ -2199,6 +2240,10 @@ def main():
     pc.add_argument("--no-attach", action="store_true",
                     help="never auto-attach, always spawn a private engine")
     pc.add_argument("--api-key", default=os.environ.get("COLI_API_KEY"))
+    pc.add_argument("--stats", choices=list(CHAT_STATS_MODES), default=None,
+                    help="generation statistics footer after each answer: full (tokens, seconds, tok/s), "
+                         "compact (tokens, tok/s), off. Default from COLI_CHAT_STATS, else full. "
+                         "Counts are exact when the server reports completion_tokens, ~estimated otherwise.")
     ps=sub.add_parser("serve", parents=[common])
     ps.add_argument("--host",default="127.0.0.1"); ps.add_argument("--port",type=int,default=8000)
     ps.add_argument("--model-id",default=os.environ.get("COLI_MODEL_ID"))
