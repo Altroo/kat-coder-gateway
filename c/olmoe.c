@@ -1455,7 +1455,10 @@ static int serve_one(Model *m, Tok *T, SReq *q, int ctx_cap) {
     if (np <= 0) { coli_serve_write_error(stdout, q->id, "empty prompt"); free(ids); return 0; }
     if (np + q->max_tok > ctx_cap) {
         char message[128];
-        snprintf(message, sizeof(message), "context exceeds CTX (%d + %d > %d)",
+        /* The frame the gateway turns into a 400 context_length_exceeded
+         * (#506, #1381). Free text here reached the client as a 500. */
+        snprintf(message, sizeof(message),
+                 "CONTEXT_EXCEEDED prompt_tokens=%d requested=%d capacity=%d",
                  np, q->max_tok, ctx_cap);
         coli_serve_write_error(stdout, q->id, message); free(ids); return 0;
     }
