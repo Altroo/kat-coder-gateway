@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Authoritative model-family registry for Colibri's Python control plane."""
 
+import os
 from dataclasses import dataclass
 import json
 import math
@@ -173,15 +174,41 @@ def _glm_geometry(config, context, _model_dir):
     return PlannerGeometry(state, 0, workspace, experts)
 
 
+def _qwen36_layer_types(config, layers, model_dir):
+    """The per-layer kinds, from wherever this container wrote them. The HF
+    config carries `layer_types`; older converted containers carry them only in
+    qwen36_meta.json (the engine reads that file, which is why chat worked
+    while doctor and plan refused, #1532); and the upstream class derives them
+    from `full_attention_interval` when neither list is present."""
+    kinds = config.get("layer_types")
+    if isinstance(kinds, list) and len(kinds) == layers:
+        return kinds
+    if model_dir:
+        try:
+            with open(os.path.join(model_dir, "qwen36_meta.json"), encoding="utf-8") as handle:
+                meta = json.load(handle)
+        except (OSError, ValueError):
+            meta = None
+        if isinstance(meta, dict):
+            kinds = meta.get("layer_types")
+            if isinstance(kinds, list) and len(kinds) == layers:
+                return kinds
+    interval = config.get("full_attention_interval")
+    if isinstance(interval, int) and not isinstance(interval, bool) and interval >= 1:
+        return ["full_attention" if (i + 1) % interval == 0 else "linear_attention"
+                for i in range(layers)]
+    raise ValueError("qwen36: missing or invalid planning key 'layer_types' "
+                     "(not in config.json, no qwen36_meta.json with it, and no "
+                     "full_attention_interval to derive it from)")
+
+
 def _qwen36_geometry(config, context, _model_dir):
     """Hybrid: only the full_attention layers hold a KV cache; the linear
     (DeltaNet) layers carry a recurrent state whose size does not depend on the
     context at all. One scaled context term would over-promise on a model where
     30 of 40 layers never grow."""
     layers = _required_int(config, "num_hidden_layers", "qwen36")
-    kinds = config.get("layer_types")
-    if not isinstance(kinds, list) or len(kinds) != layers:
-        raise ValueError("qwen36: missing or invalid planning key 'layer_types'")
+    kinds = _qwen36_layer_types(config, layers, _model_dir)
     full = sum(kind == "full_attention" for kind in kinds)
     kv = (full * context * _required_int(config, "num_key_value_heads", "qwen36") *
           _required_int(config, "head_dim", "qwen36") * 2 * 4)
