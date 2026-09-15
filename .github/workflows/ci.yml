@@ -684,6 +684,16 @@ jobs:
           SNAP=dsv41_tiny COLI_MODEL_MIRROR=dsv41_divergent ./deepseek_v41 8 dsv41_tiny/ref.json > divergent.txt 2>divergent.err
           cmp primary.txt divergent.txt
           grep -q "header differs from the primary copy" divergent.err
+      - name: KV prefix reuse (opt-in here) and the resumed-prefill exactness
+        run: |
+          cd c
+          # Two gates in one file. The first is exactness and is ours: a prefill
+          # that resumes mid-sequence must compute what a cold prefill computes,
+          # which is what the index-key schedule fix is for. The second is the
+          # shared contract, minus the one scenario this engine cannot satisfy --
+          # a prefix holding generated positions, which attend differently from
+          # prefilled ones by the vendor's own design. The override says so.
+          DSV41_TINY=dsv41_tiny python3 -m unittest -v tests.test_dsv41_prefix_serve
       - name: "A prompt longer than one block, so the block boundary is crossed"
         run: |
           cd c
@@ -1155,7 +1165,7 @@ jobs:
       # rieseguiva un binario non strumentato. Uno di quei test era rosso da
       # settimane senza che nessuno potesse vederlo.
       - name: Build the engines those tests exercise
-        run: make -C c kimi_k3 inkling colibri olmoe qwen38 qwen36
+        run: make -C c kimi_k3 inkling colibri olmoe qwen38 qwen36 deepseek_v41
       - name: Python test suite
         run: cd c && python3 -m unittest discover -s tests -p 'test_*.py'
 

@@ -146,6 +146,13 @@ class PrefixReuseContract:
     scenarios once more with no engine behind them.
     """
 
+    # An engine whose fixture round-trips every token id through text can demand
+    # the stronger property in the replay scenario below: that reuse actually
+    # FIRES when the client appends the reply. A fixture with more ids than the
+    # byte range cannot, because the reply comes back as different text and the
+    # prompt legitimately diverges.
+    REPLAY_REUSES = False
+
     def spawn(self, log_prefix=True, reuse=True):   # pragma: no cover - overridden
         raise NotImplementedError
 
@@ -256,17 +263,25 @@ class PrefixReuseContract:
     def test_a_turn_that_replays_the_reply_is_never_wrong(self):
         """The real chat shape: the client appends the assistant's reply and a
         new question. Whether the reply survives this fixture's decode-encode
-        round trip decides whether reuse FIRES, and that is allowed to vary --
-        what may never vary is the answer."""
+        round trip decides whether reuse FIRES, and on a fixture with more token
+        ids than bytes that is allowed to vary -- what may never vary is the
+        answer. Where it does round-trip (REPLAY_REUSES), firing is required:
+        this is the one scenario whose prefix contains GENERATED positions, so
+        it is what holds an engine to keeping its record honest about them."""
         warm = self.spawn()
         opening = b"The capital of France is"
-        reply = warm.ask("1", opening, max_tok=4)
+        reply = warm.ask("1", opening, max_tok=8)
         second = opening + reply + b" and the capital of Spain is"
         got = warm.ask("2", second, max_tok=8)
-        warm.close()
+        log = warm.close()
 
         cold = self.spawn(log_prefix=False)
         fresh = cold.ask("1", second, max_tok=8)
         cold.close()
 
         self.assertEqual(got, fresh, "replaying the reply changed the answer")
+        if self.REPLAY_REUSES:
+            self.assertIn("[PREFIX] reusing", log,
+                          "the turn that replays the reply did not reuse: the "
+                          "record does not describe the generated positions.\n"
+                          "engine said:\n" + (log or "(nothing on stderr)"))

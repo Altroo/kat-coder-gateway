@@ -1078,7 +1078,7 @@ qwen36$(EXE): qwen36.c serve_poll.h cli_args.h qwen36_tier.h expert_ffn.h st.h j
 # DeepSeek V4.1 Flash: one file, like every other portable engine. The fp4 experts
 # stream from the official checkpoint and quant.h's mxfp4 kernel reads them as they
 # are, so there is no conversion target here to go with it.
-deepseek_v41$(EXE): deepseek_v41.c cli_args.h st.h json.h tok.h tok_unicode.h compat.h omp_tune.h quant.h \
+deepseek_v41$(EXE): deepseek_v41.c cli_args.h st.h json.h tok.h tok_unicode.h compat.h omp_tune.h kv_prefix.h quant.h \
 	sparse_attn.h hyper_connections.h serve_codec.h serve_poll.h .build-config
 	$(CC) $(CFLAGS) deepseek_v41.c -o deepseek_v41$(EXE) $(LDFLAGS)
 
