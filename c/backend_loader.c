@@ -1405,7 +1405,6 @@ static int coli_cuda_load(void){
     RESOLVE(init,           fn_init)
     RESOLVE(shutdown,       fn_shutdown)
     RESOLVE(device_count,   fn_device_count)
-    RESOLVE(available_device_count, fn_available_device_count)
     RESOLVE(device_at,      fn_device_at)
     RESOLVE(mem_info,       fn_mem_info)
     /* Optional: a DLL predating #653 leaves this NULL; the wrapper then reports
@@ -1430,6 +1429,7 @@ static int coli_cuda_load(void){
      * nothing by this name, and the wrapper's 0 is the engine's own "fall back
      * to CPU" result, so an older DLL still serves GLM and Qwen3.6 (#1405). */
     RESOLVE_OPT(matmul_mxfp4,   fn_matmul_mxfp4)
+    RESOLVE_OPT(available_device_count, fn_available_device_count)   /* qwen36 tier (#1533); older DLLs fall back to device_count */
     RESOLVE(tensor_free,    fn_tensor_free)
     RESOLVE(tensor_bytes,   fn_tensor_bytes)
     /* Optional, same reasoning as e8_set_grid above: a DLL predating #687
@@ -1521,6 +1521,7 @@ int coli_cuda_device_count(void){
  * tier in failed to link (#1533). */
 int coli_cuda_available_device_count(void){
     if(!g_cuda.available) return 0;
+    if(!g_cuda.available_device_count) return g_cuda.device_count();   /* a DLL from before the export */
     return g_cuda.available_device_count();
 }
 
