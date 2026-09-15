@@ -886,7 +886,7 @@ class LoaderStubFixtureTest(unittest.TestCase):
         f = self.fixture
         self.assertEqual(len(f.mandatory), 47)
         self.assertEqual(len(f.optional), 8)   # +matmul_mxfp4 (kimi_k3 via the DLL, #1405), +available_device_count (qwen36 tier, #1533)
-        self.assertEqual(len(f.exports), 54)
+        self.assertEqual(len(f.exports), 55)
         self.assertEqual(len(f.exports), len(f.mandatory) + len(f.optional))
         self.assertIn("coli_cuda_init", f.mandatory)
         self.assertIn("coli_cuda_e8_set_grid", f.optional)
