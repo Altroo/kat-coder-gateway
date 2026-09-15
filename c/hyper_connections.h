@@ -128,17 +128,16 @@ static inline int coli_hc_pre(float *output, float *post, float *comb,
     for (int index = 0; index < flattened; index++)
         mean_square += input[index] * input[index];
     float inverse_rms = 1.0f / sqrtf(mean_square / flattened + norm_eps);
-    /* G10 tried replacing these two mallocs with fixed-size stack arrays
-     * (hc_mult is bounded to 8 by every loader) to save the per-call
-     * allocation -- 90 sites/token. Measurably NOT numerics-neutral: with
-     * hc's range knowable at compile time (whether from the fixed array
-     * size or from an explicit `hc <= 8` check added defensively), GCC
-     * produces different rounding in these reductions on this box --
-     * confirmed via bisection across -fno-tree-vectorize, -ffp-contract=off,
-     * #pragma GCC unroll 1, an aliasing barrier, and __attribute__((noipa)),
-     * none of which restored bit-identity, while keeping the mallocs and
-     * adding only the parallelism below is bit-identical (checked directly).
-     * So: mallocs stay: this is the small piece of G10, not the point of it. */
+    /* These two mallocs look like free money to remove: hc_mult is bounded to
+     * 8 by every loader, so fixed-size stack arrays would save an allocation
+     * at ~90 call sites per token. It was tried and it is measurably NOT
+     * numerics-neutral. Once hc's range is knowable at compile time -- whether
+     * from the array size itself or from an `hc <= 8` check added defensively
+     * -- GCC re-rounds the reductions below. Bisected across
+     * -fno-tree-vectorize, -ffp-contract=off, #pragma GCC unroll 1, an
+     * aliasing barrier and __attribute__((noipa)); none restored bit-identity,
+     * while keeping the mallocs and adding only the parallelism is
+     * bit-identical (checked directly). So the mallocs stay. */
     float *mixes = malloc((size_t)mix_count * sizeof(*mixes));
     float *pre = malloc((size_t)hc * sizeof(*pre));
     if (!mixes || !pre) {
@@ -149,9 +148,8 @@ static inline int coli_hc_pre(float *output, float *post, float *comb,
     /* The ~400k-MAC mix (mix_count independent dot products, 24 rows at
      * hc=4): each row's own untouched scalar reduction, so parallelising
      * over rows changes nothing about any one row's summation order --
-     * same reasoning as G7's router fix, not a SIMD reduction reorder.
-     * Nesting is already proven safe on this box by G8's compiled
-     * max_active_levels probe. */
+     * this distributes whole rows across threads and is not a SIMD reduction
+     * reorder. Nested parallelism was checked separately and is safe here. */
 #ifdef _OPENMP
     #pragma omp parallel for schedule(static)
 #endif
