@@ -1029,7 +1029,7 @@ def engine_diag(p, errlog=None):
         try:
             errlog.flush()
             for _ in range(20):         # il drain thread scrive su errlog quando il child chiude
-                tail=open(errlog.name).read().strip()
+                tail=open(errlog.name, encoding="utf-8", errors="replace").read().strip()
                 if tail: break
                 time.sleep(0.05)
             if tail: print(f"  {C.dgray}" + "\n  ".join(tail.splitlines()[-6:]) + f"{C.r}")
@@ -1674,7 +1674,11 @@ def cmd_chat(a):
     need_model(a.model)
     banner(f"chat · {os.path.basename(a.model)} · ram {a.ram or '-'}GB · topp {a.topp or 'off'}", model=a.model)
     kv_resume_notice(a.model)
-    errlog=tempfile.NamedTemporaryFile(mode="w+", suffix=".log", delete=False)
+    # UTF-8, not the locale's code page: the engine writes "·" and "—", which
+    # cp932/cp949 and the C locale cannot encode. The drain thread below
+    # caught that UnicodeEncodeError (a ValueError) and stopped, and once
+    # nobody read the pipe the engine blocked on its next [prefill] line.
+    errlog=tempfile.NamedTemporaryFile(mode="w+", suffix=".log", delete=False, encoding="utf-8")
     e=env_for(a); e["SERVE"]="1"
     # stderr -> PIPE, NOT stderr=errlog (file). On Windows/MinGW, pointing the
     # child's stderr at a file/DEVNULL handle stalls the CRT so stdout (the byte
@@ -1732,7 +1736,7 @@ def cmd_chat(a):
                     _preamble.decode("utf-8","replace"))
     if mload: print(f"  {C.grn}✓{C.r} ready in {mload.group(1)}s {C.dim}· resident {float(mload.group(2))/1000:.1f} GB · RSS {st.get('rss','?')} GB{C.r}")
     try:
-        elog=open(errlog.name).read()
+        elog=open(errlog.name, encoding="utf-8", errors="replace").read()
         for l in elog.splitlines():                     # una riga di stato per riga, senza path
             # [METAL]/[CUDA] first: the splash tagline (model_banner_line) names the
             # checkpoint, not the backend — this engine line is the only confirmation
@@ -1773,7 +1777,7 @@ def cmd_chat(a):
             state={"first":True}
             def prefill_tick(path=errlog.name):
                 try:
-                    with open(path) as f:
+                    with open(path, encoding="utf-8", errors="replace") as f:
                         f.seek(max(0, os.path.getsize(path)-1500)); tail=f.read()
                     pl=[l for l in tail.splitlines() if l.startswith("[prefill]")]
                     return pl[-1].replace("[prefill] ","prefill ") if pl else ""
