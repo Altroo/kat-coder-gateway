@@ -1332,9 +1332,13 @@ def cmd_run(a):
         # emits the answer and exits cleanly. No reason to spin up the gateway
         # for a single non-interactive prompt.
         e=env_for_engine(a,arch)
+        # The engine tokenizes the bytes it reads as UTF-8. A text-mode pipe
+        # would encode the prompt in the locale's code page instead: a
+        # UnicodeEncodeError on cp949/cp932 or the C locale, garbled bytes on
+        # cp1252. Hand it the bytes, like the V4 path's UTF-8 prompt file.
         result=subprocess.run(
             [engine, str(cap_for_launch(a.cap,e,16)), "8"],
-            input=prompt+"\n", text=True, env=e, check=False)
+            input=(prompt+"\n").encode("utf-8"), env=e, check=False)
         sys.exit(result.returncode)
     # template ufficiale GLM-5.2: niente \n dopo i ruoli; <think></think> = risposta diretta (nothink).
     # THINK=1 lascia <think> aperto, stessa convenzione del serve mode (glm.c). EN: THINK=1 leaves
