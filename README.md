@@ -712,4 +712,4 @@ these is used or reimplemented in the tree today:
 
 ## License
 
-Apache 2.0. GLM-5.2 weights are released by Z.ai under MIT.
+Apache 2.0, Copyright 2026 Vincenzo Fornaro. See [LICENSE](LICENSE) and [NOTICE](NOTICE). GLM-5.2 weights are released by Z.ai under MIT.
