@@ -374,6 +374,8 @@ Read **only** by `c/inkling.c`.
 | `INK_SHARED_BATCH` | auto | Prefill rows per shared-expert batch, bounded to 64 MiB of scratch. `=0` restores the scalar per-token path for A/B/debugging; a positive value caps the chunk size. Decode (`S=1`) is unchanged. |
 | `INK_METAL_MIN_S` | `1` | Minimum batch S to send the MoE block to Metal. `=2` restores the prefill-only gate (which mattered when the residency set was absent and per-block `useResource` churn cost ~135 ms). |
 | `INK_PREFIX_LOG` | unset | Log the KV-prefix reuse decision and its reason, as `K3_PREFIX_LOG` does for K3. |
+| `COLI_PREFIX_LOG` | unset | Same line for the engines that take the shared record (Qwen3.6, OLMoE): reports how many prompt tokens were reused, or why none were. |
+| `COLI_KV_PREFIX` | on | `0` disables KV-prefix reuse on those engines. The escape hatch, and the B arm of the A/B that shows reuse changes nothing but the time. |
 | `GPU_DEV` | `0` | CUDA device index for the inkling CUDA backend. |
 | `NOGPU` | unset | If set, skip GPU init entirely (both CUDA and Metal), regardless of the other GPU variables. |
 
