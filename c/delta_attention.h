@@ -99,9 +99,9 @@ static inline int coli_kda_step(float *out, float *state, float *window,
      * Channels are independent: each owns its slice of `window` and one
      * element of `mixed`, and reads `qkv`/`conv_w` without writing them.
      * This loop carries 3*width SiLU calls -- 24,576 expf per call at GLM's
-     * shape -- which is why it is worth a team of its own (G4, 2026-09-04:
-     * parallelising only the head loop below left coli_kda_step flat at
-     * 1.03 ms/call because this loop was still serial). */
+     * shape -- which is why it is worth a team of its own: parallelising only
+     * the head loop below leaves coli_kda_step flat at 1.03 ms/call, because
+     * this loop is then the serial half. Both need a team. */
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)
 #endif
@@ -120,11 +120,11 @@ static inline int coli_kda_step(float *out, float *state, float *window,
      * and reads `mixed` without writing it. The one thing they would share is
      * the `memory` accumulator, so each thread takes its own slice of the
      * pool -- sharing it corrupts every head's read-back while still emitting
-     * plausible tokens, which is the failure the teacher_forcing oracle in
-     * tools/hot-expert/README.md exists to catch. Measured on the rome rig
-     * (G4, 2026-09-04): this loop was 2.25 ms/call on one of eight cores.
-     * No num_threads() cap: capping a kernel inside a larger pool was
-     * measured and rejected on Qwen (see the record). */
+     * plausible tokens -- a teacher-forcing oracle catches it, reading the
+     * output does not. Measured before parallelising: 2.25 ms/call on one of
+     * eight cores. No num_threads() cap here: capping a single kernel's team
+     * inside a larger pool was measured on another engine and rejected, since
+     * the idle pool threads spin on the sibling hyperthreads. */
 #ifdef _OPENMP
 #pragma omp parallel for schedule(static)
 #endif
