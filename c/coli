@@ -615,8 +615,11 @@ def dsv4_cuda_available(model=None):
     # not make a CPU engine look GPU-capable.
     eng = engine_for(model) if model else GLM
     if sys.platform == "win32":
-        dll = os.path.join(os.path.dirname(eng), "coli_cuda_dsv4.dll")
-        return os.path.exists(dll)
+        # backend_loader_dsv4.c tries the DeepGEMM build first and the generic
+        # one second, so either next to the engine starts the tier (the same
+        # two names `coli doctor` accepts).
+        return any(os.path.exists(os.path.join(os.path.dirname(eng), name))
+                   for name in ("coli_cuda_dsv4_dg.dll", "coli_cuda_dsv4.dll"))
     if sys.platform == "linux" and os.path.exists(eng):
         try:
             linked = subprocess.run(["ldd", eng], capture_output=True, text=True, timeout=3)
