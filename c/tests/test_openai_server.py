@@ -363,6 +363,16 @@ class TemplateTest(unittest.TestCase):
             generation_options({"response_format": {"type": "yaml"}}, 8)
         with self.assertRaises(APIError):
             generation_options({"response_format": {"type": "json_schema", "json_schema": {}}}, 8)
+        # a json_schema that is not an object is the client's mistake too: a 400
+        # naming the parameter, not an AttributeError the handler turns into a
+        # 500 "engine failed" (which OpenAI SDKs retry)
+        for json_schema in ('{"schema": {}}', [schema], 5, True):
+            with self.subTest(json_schema=json_schema):
+                with self.assertRaises(APIError) as caught:
+                    generation_options({"response_format": {"type": "json_schema",
+                                                            "json_schema": json_schema}}, 8)
+                self.assertEqual(caught.exception.status, 400)
+                self.assertEqual(caught.exception.param, "response_format")
         with self.assertRaises(APIError):   # non-dict response_format
             generation_options({"response_format": "json"}, 8)
         with self.assertRaises(APIError):   # empty gbnf
