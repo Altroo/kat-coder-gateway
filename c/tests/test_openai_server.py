@@ -1505,6 +1505,30 @@ class HTTPTest(unittest.TestCase):
         self.addCleanup(caught.exception.close)
         self.assertEqual(caught.exception.code, 400)
 
+    def test_unpaired_surrogate_is_a_client_error(self):
+        """JSON can spell a lone UTF-16 surrogate ("\\ud83d": a client that cut a
+        string between the two halves of an emoji). json.loads accepts it, no
+        UTF-8 can carry it, and Engine.generate's first step, prompt.encode(),
+        raised: HTTP 500 "The colibri engine failed". Invalid UTF-8 in the raw
+        body is already a 400; this is the same invalid text, escaped."""
+        real_generate = self.engine.generate
+
+        def encoding_generate(prompt, *args, **kwargs):
+            prompt.encode("utf-8")          # what Engine.generate does before anything else
+            return real_generate(prompt, *args, **kwargs)
+
+        cut = "emoji \ud83d"
+        cases = (("/v1/chat/completions", {"messages": [{"role": "user", "content": cut}]}),
+                 ("/v1/completions", {"prompt": cut}),
+                 ("/v1/messages", {"max_tokens": 4, "messages": [{"role": "user", "content": cut}]}))
+        with patch.object(self.engine, "generate", side_effect=encoding_generate):
+            for path, body in cases:
+                with self.subTest(path=path):
+                    with self.assertRaises(HTTPError) as caught:
+                        self.request(path, dict(body, model="test-model"))
+                    self.addCleanup(caught.exception.close)
+                    self.assertEqual(caught.exception.code, 400)
+
 
 class ClientHangupTest(unittest.TestCase):
     """A client that disconnects mid-response must not print a traceback.
