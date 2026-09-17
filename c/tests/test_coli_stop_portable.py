@@ -53,6 +53,11 @@ class ColiStopPortable(unittest.TestCase):
             decoy.kill()
             decoy.wait(timeout=10)
 
+    @unittest.skipIf(sys.platform == "win32",
+                     "Windows discovery is pidfile-only: an engine target is confirmed by "
+                     "reading another process's environment (SERVE=1 + COLI_SERVE_PORT), and "
+                     "neither tasklist nor wmic can read another process's environment block. "
+                     "cmd_stop reads the pidfile before it scans, so stop still works there.")
     def test_discovers_a_coli_serve_process(self):
         """Discovery must be PORTED, not just guarded.
 
