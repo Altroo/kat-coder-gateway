@@ -112,6 +112,24 @@ class AutotuneUnitTest(unittest.TestCase):
                 # sweep has nothing left to measure on those engines.
                 self.assertTrue(any(name.startswith("omp-") for name in steps), steps)
 
+    def test_cuda_knobs_are_not_swept_on_other_engines(self):
+        """COLI_CUDA_PIPE is read by colibri.c alone, and COLI_CUDA_ASYNC only
+        on the grouped-expert CUDA call colibri.c makes. A GPU in the plan
+        offered both to every engine, so a sibling tune measured identical
+        runs and could accept timing noise as a gain."""
+        gpu_plan = plan(gpu=True)
+        glm = dict(candidate_steps(gpu_plan, {}, "glm"))
+        for name in ("cuda-pipe-1", "cuda-pipe-2", "cuda-sync"):
+            self.assertIn(name, glm)
+        for arch in ("glm53", "deepseek_v4", "deepseek_v41", "kimi", "inkling",
+                     "olmoe", "qwen36", "qwen38"):
+            with self.subTest(arch=arch):
+                steps = dict(candidate_steps(gpu_plan, {}, arch))
+                self.assertFalse(any(name.startswith("cuda-") for name in steps), steps)
+                self.assertFalse({"COLI_CUDA_PIPE", "COLI_CUDA_ASYNC"}
+                                 & {key for change in steps.values() for key in change})
+                self.assertTrue(any(name.startswith("omp-") for name in steps), steps)
+
     def test_v4_loader_lanes_are_bounded_and_only_swept_when_disk_is_cold(self):
         cold_plan = plan(cores=16, gpu=False, cold=1 << 30)
         steps = dict(candidate_steps(cold_plan, {}, "deepseek_v4"))
@@ -331,6 +349,19 @@ class ServeTuneTest(unittest.TestCase):
         self.assertEqual(len(FakeServeEngine.launches), 4)
         self.assertEqual(FakeServeEngine.sessions,
                          [["prompt-a", "prompt-b"]] * 4)
+
+    def test_sibling_tune_with_a_gpu_launches_no_cuda_candidates(self):
+        FakeServeEngine.reset()
+        p = plan(cores=8, gpu=True)
+        p["tiers"]["ram"] = {"cache_slots_per_layer": 16}
+        profile, _ = self.run_serve_tune(arch="qwen36", plan=p,
+                                         prompts=("prompt-a", "prompt-b"))
+        names = [candidate["name"] for candidate in profile["candidates"]]
+        self.assertEqual(names, ["baseline", "omp-4"])
+        for launch in FakeServeEngine.launches:
+            self.assertNotIn("COLI_CUDA_PIPE", launch["env"])
+            self.assertNotIn("COLI_CUDA_ASYNC", launch["env"])
+        self.assertEqual(len(FakeServeEngine.launches), 4)
 
     def test_candidate_that_changes_output_is_disqualified(self):
         FakeServeEngine.reset(drift_on="OMP_NUM_THREADS")

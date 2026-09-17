@@ -195,7 +195,9 @@ def candidate_steps(plan: dict, base_env: dict, arch: str = "glm") -> list[tuple
     if sockets > 1 and base_env.get("COLI_NUMA") != "1":
         steps.append(("numa-on", {"COLI_NUMA": "1"}))
     has_gpu = bool(plan.get("tiers", {}).get("vram", {}).get("devices"))
-    if has_gpu:
+    # Same rule for the CUDA knobs: COLI_CUDA_PIPE is read in colibri.c only,
+    # and COLI_CUDA_ASYNC only on the grouped-expert call colibri.c makes.
+    if has_gpu and arch == "glm":
         pipe = int(base_env.get("COLI_CUDA_PIPE", "0"))
         for value in (1, 2):
             if value != pipe:
