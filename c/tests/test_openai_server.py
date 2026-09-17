@@ -2077,6 +2077,44 @@ class ThinkingSplitUnitTest(unittest.TestCase):
             self.assertFalse(srv.starts_in_reasoning(False),
                              "GLM-5.2 closes the block in the prompt when thinking is off")
 
+    def test_glm53_bare_tool_call_turn_matches_what_the_model_wrote(self):
+        """#1576: a replayed assistant turn has to be the tokens the model made.
+
+        The official template writes "\\n<tool_call>" and GLM-5.3 does not: on a
+        turn that is nothing but a tool call it writes "</think><tool_call>".
+        Rendering the newline anyway put one extra token into the replayed
+        prefix, and the reuse gate in glm53.c is all-or-nothing, so the entire
+        cached prefix went and the turn re-prefilled from scratch. The reporter
+        measured twenty minutes of it on a 3k-token agent history.
+
+        The turn that also carries text keeps its newline, and that is not an
+        oversight: there the model's own trailing newline is stripped and put
+        back, the tokens line up, and it is the case that works today.
+        """
+        import openai_server as srv
+        bare = srv.render_chat_glm53([
+            {"role": "user", "content": "list the files"},
+            {"role": "assistant", "content": "",
+             "tool_calls": [{"type": "function",
+                             "function": {"name": "bash",
+                                          "arguments": '{"command": "ls"}'}}]},
+            {"role": "tool", "content": "a.txt"},
+        ])
+        self.assertIn("</think><tool_call>bash", bare,
+                      "a bare tool call must follow </think> with no newline")
+        self.assertNotIn("</think>\n<tool_call>", bare)
+
+        with_text = srv.render_chat_glm53([
+            {"role": "user", "content": "list the files"},
+            {"role": "assistant", "content": "Let me look.",
+             "tool_calls": [{"type": "function",
+                             "function": {"name": "bash",
+                                          "arguments": '{"command": "ls"}'}}]},
+            {"role": "tool", "content": "a.txt"},
+        ])
+        self.assertIn("Let me look.\n<tool_call>bash", with_text,
+                      "a turn with text keeps the separator it already had")
+
     def test_missing_close_tag_surfaces_reasoning(self):
         self.assertEqual(split_thinking_reply("thought with no end"),
                          ("thought with no end", ""))

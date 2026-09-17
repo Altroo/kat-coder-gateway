@@ -1995,8 +1995,22 @@ def render_chat_glm53(messages, enable_thinking=False, reasoning_effort=None, to
                 reasoning = content.split("</think>")[0].split("<think>")[-1]
                 content = content.split("</think>")[-1]
             opened = f"<think>{reasoning}</think>" if isinstance(reasoning, str) else "<think></think>"
-            prompt.append(f"<|assistant|>{opened}{content.strip()}"
-                          f"{_glm53_tool_calls(message.get('tool_calls'))}")
+            body = content.strip()
+            calls = _glm53_tool_calls(message.get("tool_calls"))
+            # The template writes "\n<tool_call>". The model, on a turn that is
+            # nothing but a tool call, writes "</think><tool_call>" with no
+            # newline between them, and that one token is enough to throw away
+            # the whole cached prefix: the reuse gate in glm53.c is
+            # all-or-nothing, so the next turn re-prefills from scratch -- on a
+            # 3k-token agent history at 2.3 tok/s, twenty minutes (#1576).
+            #
+            # A turn that also has text is left exactly as it was. There the
+            # model's own trailing newline is stripped by .strip() and put back
+            # by the renderer, so the tokens already line up, and changing that
+            # case would break the one that works today.
+            if calls and not body:
+                calls = calls.lstrip("\n")
+            prompt.append(f"<|assistant|>{opened}{body}{calls}")
         else:
             raise APIError(400, f"unsupported message role {role!r}.", "messages")
 
