@@ -2681,7 +2681,8 @@ def generation_options(body, limit):
         if ftype == "json_object":
             grammar = GENERIC_JSON_GBNF
         elif ftype == "json_schema":
-            schema = (response_format.get("json_schema") or {}).get("schema")
+            json_schema = response_format.get("json_schema")
+            schema = json_schema.get("schema") if isinstance(json_schema, dict) else None
             if not isinstance(schema, dict):
                 raise APIError(400, "`response_format.json_schema.schema` must be an object.",
                                "response_format", "invalid_value")
