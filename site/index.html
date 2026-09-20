@@ -65,9 +65,10 @@ header{position:sticky;top:0;z-index:40;background:#fff}
 .hero h1{font-size:4.25rem;line-height:1.04;font-weight:500;letter-spacing:-.035em;margin-bottom:1.5rem}
 .hero .sub{font-size:1.2rem;line-height:1.55;color:var(--dim);max-width:31rem;margin-bottom:2rem}
 .hcta{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
-.shot{background:var(--softer);border:1px solid var(--line);border-radius:12px;padding:1.1rem 1.25rem;
-  font:400 13px/1.95 var(--mono)}
-.shot .p{color:var(--faint)} .shot .c{color:#171717} .shot .o{color:var(--dim)}
+.shot{margin:0}
+.shot video{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:12px;background:#0f1113}
+.shot figcaption{margin-top:.7rem;font-size:13.5px;line-height:1.5;color:var(--dim);max-width:34rem}
+.shot figcaption code{font:400 12.5px var(--mono);background:var(--soft);border-radius:4px;padding:1px 5px}
 .trust{text-align:center;color:var(--dim);font-size:.95rem;padding:1.5rem 0 1.4rem}
 .logos{display:flex;justify-content:center;gap:2.8rem;flex-wrap:wrap;color:#c8c8c8;
   font-size:1rem;font-weight:600;letter-spacing:-.01em;padding-bottom:5.5rem}
@@ -174,9 +175,9 @@ footer{border-top:1px solid var(--line)}
 [data-theme="dark"] .pill.d{background:#f5f5f5;color:#0a0a0a}
 [data-theme="dark"] .pill.d:hover{background:#fff}
 [data-theme="dark"] .pill.g:hover{background:#242424}
-[data-theme="dark"] .shot,[data-theme="dark"] .mget code,
+[data-theme="dark"] .mget code,[data-theme="dark"] .mget code,
 [data-theme="dark"] .ex .io{background:var(--softer);border-color:var(--line)}
-[data-theme="dark"] .shot .c{color:#ededed}
+[data-theme="dark"] .shot figcaption code{background:var(--soft)}
 [data-theme="dark"] .ct i{background:#f5f5f5}
 [data-theme="dark"] .ct.lite i{background:#4a4a4a}
 [data-theme="dark"] .code{background:#141414;border:1px solid var(--line)}
@@ -251,16 +252,14 @@ footer{border-top:1px solid var(--line)}
       <a class="pill g big" href="https://github.com/JustVugg/colibri/blob/main/docs/quickstart.md">Quickstart</a>
     </div>
   </div>
-  <div class="shot">
-    <div><span class="p">$</span> <span class="c">coli chat --model ~/Models/glm52_i4</span></div>
-    <div class="o">GLM-5.2 &middot; 744B &middot; 256 experts per layer</div>
-    <div class="o">resident 15.3 GB &middot; experts streamed from NVMe</div>
-    <div class="o">ready in 1 min 40 s</div>
-    <div><span class="p">&gt;</span> <span class="c">what does an expert cache miss cost?</span></div>
-    <div class="o">A miss is a read, not a repack: 88% of the</div>
-    <div class="o">time is the disk, which is why the fetch is</div>
-    <div class="o">batched and opened with O_DIRECT&hellip;</div>
-  </div>
+  <figure class="shot">
+    <video src="demo.webm" poster="demo-poster.jpg" width="1280" height="800"
+           autoplay muted loop playsinline preload="metadata"
+           aria-label="A real session: the terminal chat, then the same model scoring a closed set of options in the dashboard"></video>
+    <figcaption>A real session, nothing staged: <code>coli chat</code> attached to a running
+      server, then the same model in brio mode. The numbers are the ones it produced.</figcaption>
+  </figure>
+</div>
 </div></section>
 
 <p class="trust">Measured today on machines people actually have</p>
@@ -384,7 +383,8 @@ footer{border-top:1px solid var(--line)}
         someone else's runtime.</p>
       <div class="chart"><div class="crow"><span class="cl">kimi-k3<s>104B active</s></span><span class="ct"><i style="width:100.0%"></i></span><span class="cv">2.8T</span></div><div class="crow"><span class="cl">inkling<s>41B active</s></span><span class="ct"><i style="width:34.8%"></i></span><span class="cv">975B</span></div><div class="crow"><span class="cl">glm-5.2<s>40B active</s></span><span class="ct"><i style="width:26.6%"></i></span><span class="cv">744B</span></div><div class="crow"><span class="cl">deepseek-v4.1-flash<s>16B active</s></span><span class="ct"><i style="width:19.7%"></i></span><span class="cv">552B</span></div><div class="crow"><span class="cl">glm-5.3-flash<s>18B active</s></span><span class="ct"><i style="width:11.4%"></i></span><span class="cv">320B</span></div><div class="crow"><span class="cl">deepseek-v4-flash<s>13B active</s></span><span class="ct"><i style="width:10.1%"></i></span><span class="cv">284B</span></div><div class="crow"><span class="cl">qwen3.8-flash-next<s>6B active</s></span><span class="ct"><i style="width:6.4%"></i></span><span class="cv">180B</span></div><div class="crow"><span class="cl">qwen3.6-35b-a3b<s>3B active</s></span><span class="ct"><i style="width:1.2%"></i></span><span class="cv">35B</span></div><div class="crow"><span class="cl">olmoe<s>1B active</s></span><span class="ct"><i style="width:0.8%"></i></span><span class="cv">7B</span></div></div>
       <p class="src">Total parameters. Only the active ones are computed per token, and only the
-        routed experts move.</p>
+        routed experts move. The engines, by the names the docs use:
+        GLM-5.3-Flash, GLM-5.2/5.3, Inkling, Kimi K3, OLMoE, Qwen3.6-35B-A3B, Qwen3.8-Flash-Next, DeepSeek V4 Flash, DeepSeek V4.1 Flash.</p>
       <a class="more" href="#models">Browse all models &rarr;</a>
     </div>
 
@@ -488,6 +488,7 @@ footer{border-top:1px solid var(--line)}
 
 <footer><div class="fin">
   <span>&copy; 2026 colibri</span>
+  <span>Currently shipping <b>v1.11.0</b></span>
   <span class="sp">
     <a href="https://github.com/JustVugg/colibri/">GitHub</a><a href="https://github.com/JustVugg/colibri/blob/main/docs/quickstart.md">Docs</a>
     <a href="https://github.com/JustVugg/colibri/blob/main/docs/brio.md">Brio</a><a href="https://github.com/JustVugg/colibri/blob/main/docs/api.md">API</a>
