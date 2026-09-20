@@ -1561,12 +1561,12 @@ def chat_brio(a, base, model_id, msgs, question, options, w):
     h=out.get("entropy",1.0)
     # L'entropia e la parte che la generazione non sa dare: non "qual e la
     # risposta" ma "quanto il modello sa di saperlo".
-    verdict=(f"{C.grn}certo{C.r}" if h<.4 else
-             f"{C.yel}incerto{C.r}" if h<.8 else f"{C.yel}NON SA{C.r}")
+    verdict=(f"{C.grn}sure{C.r}" if h<.4 else
+             f"{C.yel}unsure{C.r}" if h<.8 else f"{C.yel}DOES NOT KNOW{C.r}")
     usage=out.get("usage",{})
-    print(f"     {C.b}→ {out.get('answer','?')}{C.r}  {C.dim}entropia {h:.3f}{C.r} ({verdict})")
-    print(f"  {C.dim}{time.time()-t0:.2f}s · {usage.get('read_tokens',0)} token letti · "
-          f"{usage.get('completion_tokens',0)} generati{C.r}\n")
+    print(f"     {C.b}→ {out.get('answer','?')}{C.r}  {C.dim}entropy {h:.3f}{C.r} ({verdict})")
+    print(f"  {C.dim}{time.time()-t0:.2f}s · {usage.get('read_tokens',0)} tokens read · "
+          f"{usage.get('completion_tokens',0)} generated{C.r}\n")
 
 def chat_attached(a, base, model_id):
     """The chat REPL over HTTP against a running `coli serve`.
