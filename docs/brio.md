@@ -22,19 +22,35 @@ Brio mode answers the three questions a closed-set decision actually has:
 The third row is the one you cannot get any other way, and it is usually the one
 that decides whether a decision can be automated.
 
-## Server only
+## It needs a running server
 
-**There is no CLI for brio mode and no one-shot invocation.** It exists over the
-serve protocol and over the HTTP gateway, and nowhere else. The reason is the
-snapshot: the shared prefix is read once and kept in the engine's memory, so every
-question after the first is cheap. A one-shot process would load the model, read
-the prompt, answer, and throw the snapshot away — which is the case brio mode
-exists to avoid.
+There are three ways to use brio mode and they are all clients of the same
+server: the **HTTP endpoint**, the **terminal** (`coli chat --attach`) and the
+**Brio page** in the web interface. What does not exist is a one-shot form —
+no `coli brio <model> ...` that loads, answers and exits.
+
+That is not an omission. The whole point is the snapshot: the shared prefix is
+read once and kept in the engine's memory, so every question after the first is
+cheap. A process that exited after one answer would throw away the thing the mode
+exists for, and would be slower than plain generation for the trouble.
+
+So start the server once and keep it:
 
 ```bash
 cd c
 COLI_MODEL=/nvme/qwen36 ./coli serve --host 127.0.0.1 --port 8000 --model-id qwen36
 ```
+
+and then reach it however you prefer:
+
+| from | how |
+|---|---|
+| your own code | `POST /v1/brio`, below |
+| the terminal | `coli chat --attach http://127.0.0.1:8000`, then `/brio` |
+| the browser | open the server's address, Brio in the navigation dock |
+
+All three end up in the same place, so a snapshot warmed by one of them is
+already warm for the others.
 
 ## The HTTP endpoint
 
@@ -111,6 +127,9 @@ this decision needs a human, which a generated sentence never does.
 
 ## In the terminal
 
+The conversation so far becomes the context, so you can chat, then switch to
+scoring without restating anything.
+
 ```
 coli chat --attach http://127.0.0.1:8000
 
@@ -131,6 +150,22 @@ coli chat --attach http://127.0.0.1:8000
 
 `/brio` with options enters the mode with the conversation so far as the context;
 `/brio` alone returns to chat. `:brio` works too. TAB completes the commands.
+
+## In the browser
+
+The **Brio** entry in the navigation dock opens a page built around the same
+shape: the document on top, read once, and questions accumulating below it, each
+with its own set of allowed options and its own answer. The bars show the
+probability of every option, and the entropy sits next to the winner.
+
+Options are per question, not shared across the page: "how risky is this" wants
+low/medium/high where "do we sign" wants yes/no, and one list for all of them
+would bend the questions to fit the list.
+
+You can load the document from a file (plain text: `.txt`, `.md`, `.json`, `.csv`
+and friends; PDF and Word are not supported and are refused rather than silently
+read as noise). The page and the chat stay alive together: start a scoring run,
+go and chat about something else, and the answers are waiting when you come back.
 
 ## Under the protocol
 
