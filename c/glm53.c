@@ -3330,6 +3330,7 @@ int main(int argc, char **argv) {
         tok_load(&serve_tok, tokenizer_path);
         const char *batch = getenv("SERVE_BATCH");
         arm_stops(snap, &serve_tok, batch && atoi(batch));
+        coli_rt_term_arm();   /* SIGTERM must reach the save below (#1629) */
         serve_loop(&served, &serve_tok);
         glm53_telemetry_save();
         rt_destroy();
