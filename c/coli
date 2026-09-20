@@ -1487,10 +1487,10 @@ def render_gen_stats(st, mode):
 # comando. Ogni forma si accetta sia con / sia con : -- i comandi storici usano
 # i due punti e non si toglie a nessuno l'abitudine.
 CHAT_COMMANDS = {
-    "brio":  "a | b | c   punteggia le opzioni invece di generare; senza opzioni torna alla chat",
-    "reset": "            ricomincia la conversazione",
-    "help":  "            questo elenco",
-    "quit":  "            esci (anche :q)",
+    "brio":  "a | b | c   score the options instead of generating; no options returns to chat",
+    "reset": "            start the conversation again",
+    "help":  "            this list",
+    "quit":  "            leave (also :q)",
 }
 
 def chat_command(message):
@@ -1504,7 +1504,7 @@ def chat_command(message):
     return head.strip().lower(), rest.strip()
 
 def chat_commands_help():
-    print(f"  {C.dim}comandi:{C.r}")
+    print(f"  {C.dim}commands:{C.r}")
     for name, what in CHAT_COMMANDS.items():
         print(f"    {C.teal}/{name}{C.r} {C.dim}{what}{C.r}")
     print()
@@ -1581,7 +1581,7 @@ def chat_attached(a, base, model_id):
     import urllib.request, urllib.error
     print(f"  {C.grn}✦ attached{C.r} {C.dim}to {base} · model {model_id} · the engine stays warm after you quit{C.r}")
     print(f"  {C.dim}type and press Enter · Ctrl-C stops the answer · :reset starts a new conversation · :q exits{C.r}")
-    print(f"  {C.dim}/ per i comandi · TAB completa · /brio mette lo STESSO modello in modalita brio{C.r}\n")
+    print(f"  {C.dim}/ for commands · TAB completes · /brio puts the SAME model in brio mode{C.r}\n")
     install_chat_completer()
     msgs=[]
     brio_options=[]          # non vuoto = modalita brio accesa
@@ -1622,15 +1622,15 @@ def chat_attached(a, base, model_id):
                     brio_options=[]
                     print(f"  {C.dim}✦ chat{C.r}\n")
                 else:
-                    print(f"  {C.yel}  /brio vuole le opzioni: /brio merge | request changes | close{C.r}\n")
+                    print(f"  {C.yel}  /brio needs the options: /brio merge | request changes | close{C.r}\n")
                 continue
             brio_options=[o.strip() for o in spec.split("|") if o.strip()]
             if len(brio_options)<2:
                 brio_options=[]
-                print(f"  {C.yel}  servono almeno due opzioni, separate da |{C.r}\n")
+                print(f"  {C.yel}  at least two options are needed, separated by |{C.r}\n")
                 continue
-            print(f"  {C.grn}✦ brio{C.r} {C.dim}· {len(brio_options)} opzioni · "
-                  f"il modello non genera piu, assegna probabilita · /brio per tornare alla chat{C.r}\n")
+            print(f"  {C.grn}✦ brio{C.r} {C.dim}· {len(brio_options)} options · "
+                  f"the model stops generating and scores instead · /brio returns to chat{C.r}\n")
             continue
         if brio_options:
             chat_brio(a, base, model_id, msgs, msg, brio_options, w)
