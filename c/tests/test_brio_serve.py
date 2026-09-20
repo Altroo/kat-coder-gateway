@@ -143,6 +143,50 @@ class BrioServe(unittest.TestCase):
                 f"recomputing gave {fresh[position]} -- the snapshot is not the "
                 f"state it claims to be")
 
+    def test_a_stale_snapshot_is_not_restored(self):
+        """A snapshot whose rows the state no longer holds must be refused.
+
+        The snapshot carries the recurrent state and the ids, never the
+        attention rows: those stay where they are, and between two options
+        another conversation can overwrite them. Matching the snapshot's ids
+        against the REQUEST is not enough then -- they also have to match what
+        the state still says it holds, which is what kv_prefix_holds() asks.
+
+        Without that check the engine restores a recurrent state that belongs
+        to one conversation on top of attention rows that belong to another,
+        and answers from a mixture of the two. The reply stays plausible, so
+        only a paired comparison catches it: here a divergent prompt is sent
+        between the snapshot and its use, and the score must still equal a
+        cold recompute."""
+        other = "Context: the invoice is overdue by ninety days.\nQuestion: escalate?\nAnswer:"
+
+        engine = Engine()
+        try:
+            _, prefix = engine.submit(1, PROMPT, 0, " logprobs=1 pin=1")
+            engine.submit(2, other, 4)          # overwrites the record with other ids
+            _, after = engine.submit(3, PROMPT + OPTION, 0, " logprobs=1")
+        finally:
+            engine.close()
+        self.assertTrue(prefix, "the warm pass read nothing")
+        tail_starts = max(prefix) + 1
+
+        cold = Engine()
+        try:
+            _, fresh = cold.submit(1, PROMPT + OPTION, 0, " logprobs=1")
+        finally:
+            cold.close()
+
+        wanted = sorted(p for p in fresh if p >= tail_starts)
+        self.assertTrue(wanted, "the cold run read no tail position")
+        for position in wanted:
+            self.assertIn(position, after,
+                          f"position {position} was not scored after the detour")
+            self.assertEqual(
+                after[position], fresh[position],
+                f"position {position}: {after[position]} after a divergent prompt "
+                f"came in between, {fresh[position]} from cold -- a stale snapshot "
+                f"was restored over someone else's attention rows")
+
     def test_the_snapshot_only_reads_the_fresh_tail(self):
         """The point of the snapshot: the shared prefix is not read again."""
         engine = Engine()
