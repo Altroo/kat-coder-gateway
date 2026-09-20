@@ -3339,7 +3339,13 @@ int main(int argc, char **argv){
           fprintf(stderr,"[K3] tokenizer.json loaded (family=%s)\n",T.kimi?"kimi":(T.o200k?"o200k":"cl100k")); } }
     if(serving){
         if(!has_tok){ fprintf(stderr,"serve mode needs tokenizer.json\n"); return 1; }
+        coli_rt_term_arm();   /* SIGTERM must reach the save below (#1629) */
          serve_loop(&m,&T);
+        /* Questo ramo non salvava affatto la storia: gli altri motori lo
+         * fanno subito dopo il loop, qui mancava del tutto, quindi la
+         * modalita serve non ha mai contribuito alla cache appresa --
+         * nemmeno uscendo in modo pulito. */
+        if(g_k3_usage[0]) rt_save(g_k3_usage,0);
         if(g_k3_val_fp){ fflush(g_k3_val_fp); fclose(g_k3_val_fp); g_k3_val_fp=NULL; }
         if(g_k3_val_lfp){ fflush(g_k3_val_lfp); fclose(g_k3_val_lfp); g_k3_val_lfp=NULL; }
 #ifdef COLI_METAL

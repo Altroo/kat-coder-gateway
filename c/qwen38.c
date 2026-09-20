@@ -1930,6 +1930,7 @@ int main(int argc, char **argv) {
     if (getenv("SERVE") && getenv("SERVE")[0] == '1') {
         if (!g_tok) { fprintf(stderr, "[serve] tokenizer.json required (put in SNAP or set TOK)\n");
             q38_model_free(&m); rt_destroy(); return 1; }
+        coli_rt_term_arm();   /* SIGTERM must reach the save below (#1629) */
         serve_loop(&m);
         rt_save(g_q38_usage, 0);
         q38_prefix_cache_release(&m);

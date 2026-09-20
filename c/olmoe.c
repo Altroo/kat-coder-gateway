@@ -1723,6 +1723,14 @@ static void serve_loop(Model *m, Tok *T, int ctx_cap) {
         int fatal = serve_one(m, T, &q, ctx_cap);
         free(q.payload);
         if (fatal < 0) return;
+        /* Resend the grid after EVERY turn, not only after READY: at boot the
+         * expert cache is empty by definition, and that cold snapshot stayed
+         * the only one the dashboard ever saw -- all grey, RAM 0, everything
+         * on disk, forever. HITS was already per turn, which is why the white
+         * "routed now" flash worked while the residency colour never moved.
+         * inkling.c, kimi_k3.c, qwen38.c, deepseek_v41.c and colibri.c
+         * already do this. */
+        serve_tiers_emap(m);
     }
 }
 
@@ -1786,6 +1794,7 @@ int main(int argc, char **argv) {
         Tok T;
         char tokpath[2048]; snprintf(tokpath, sizeof(tokpath), "%s/tokenizer.json", snap);
         tok_load(&T, tokpath);
+        coli_rt_term_arm();   /* SIGTERM must reach the save below (#1629) */
         serve_loop(&m, &T, ctx_cap);
         { const char *up = getenv("COLI_USAGE");
           if (up && *up) rt_save(up, 0); }
