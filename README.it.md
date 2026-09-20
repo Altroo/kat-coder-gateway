@@ -34,7 +34,7 @@ ma non ridefinire il modello di nascosto.
 
 ```
 $ ./coli chat
-  🐦 colibri v1.11.0 — GLM-5.2 · 744B MoE · int4 · streaming CPU
+  🐦 colibri v1.12.0 — GLM-5.2 · 744B MoE · int4 · streaming CPU
   ✓ ready in 32s · resident 9.9 GB
   › ciao!
   ◆ Ciao! 😊 Come posso aiutarti oggi?
@@ -283,6 +283,12 @@ Un container **GLM-5.2 int4** pre-convertito è su Hugging Face — usa la build
 disco che abbia lo spazio, meglio se veloce:
 
 **https://huggingface.co/mastouri/GLM-5.2-colibri-int4-g64-with-int8-mtp**
+
+**GLM-5.3** è la stessa famiglia e si carica con lo stesso motore. Ha il suo
+container group-scaled (gs64), circa **419 GB**, e arriva **senza** la testa MTP,
+quindi la decodifica speculativa resta disattivata:
+
+**https://huggingface.co/Justvugg/GLM-5.3-colibri-int4-g64**
 
 > ⚠️ Usa il container **gs64** qui sopra, non i vecchi mirror int4 per-row
 > (`mateogrgic/…`, `jlnsrk/…`): misurano circa 9 punti percentuali in meno sulla

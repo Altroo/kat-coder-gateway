@@ -25,7 +25,7 @@ Colibrì 刻意用於驗證激進的系統構想——因此**對速度不作 SL
 
 ```
 $ ./coli chat
-  🐦 colibri v1.11.0 — GLM-5.2 · 744B MoE · int4 · streaming CPU
+  🐦 colibri v1.12.0 — GLM-5.2 · 744B MoE · int4 · streaming CPU
   ✓ ready in 32s · resident 9.9 GB
   › ciao!
   ◆ Ciao! 😊 Come posso aiutarti oggi?
@@ -243,6 +243,11 @@ Hugging Face 上已有預先轉換的 **GLM-5.2 int4** 容器——請務必使�
 **含 int8 MTP head 的 group-scaled（gs64）版本**。它約為 **372 GB**，請放在空間足夠的硬碟上，最好是快碟：
 
 **https://huggingface.co/mastouri/GLM-5.2-colibri-int4-g64-with-int8-mtp**
+
+**GLM-5.3** 屬於同一家族,使用同一引擎載入。它有自己的 group-scaled(gs64)容器,
+約 **419 GB**,且**不含** MTP head,因此推測解碼保持關閉:
+
+**https://huggingface.co/Justvugg/GLM-5.3-colibri-int4-g64**
 
 > ⚠️ 請使用上面的 **gs64** 容器，不要使用較舊的 per-row int4 鏡像
 >（`mateogrgic/…`、`jlnsrk/…`）：後者品質實測低約 9 個百分點，也是
