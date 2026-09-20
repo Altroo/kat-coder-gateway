@@ -33,7 +33,7 @@ interface Row {
 
 let nextId = 1
 const blank = (): Row => ({ id: nextId++, text: "", options: "" })
-const first = (): Row => ({ id: nextId++, text: "", options: "si\nno" })
+const first = (): Row => ({ id: nextId++, text: "", options: "yes\nno" })
 
 export default function Brio({ baseUrl, apiKey, model, connected }: {
   baseUrl: string; apiKey: string; model: string; connected: boolean
