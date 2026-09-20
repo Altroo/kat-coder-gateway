@@ -35,6 +35,14 @@ that used to answer 500 or die on a locale.
 - Three clients: `POST /v1/brio` on the gateway, `/brio` in `coli chat`,
   and a page in the dashboard. `docs/brio.md` has the request, the reply,
   the normalisation choice and the cases where the mode does not help.
+- The endpoint takes three forms. `options` is one closed question.
+  `questions` is many questions on one state, each with its own options,
+  with the state photographed once and the snapshots ordered by the server.
+  `schema` is an object of field to allowed values: the server writes the
+  JSON skeleton and fills it one field at a time, so the object is valid by
+  construction and every value is one the caller allowed, each with its own
+  probability and entropy. Both were measured before they were exposed: the
+  5.7x and the 2.4x above are these two forms.
 
 ### The dashboard and the landing page
 
