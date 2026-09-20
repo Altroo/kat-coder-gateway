@@ -1648,6 +1648,14 @@ static void serve_loop(Model *m, Tok *T, int ctx_cap) {
         int fatal = serve_one(m, T, &q, ctx_cap);
         free(q.payload);
         if (fatal < 0) return;
+        /* Resend the grid after EVERY turn, not only after READY: at boot the
+         * expert cache is empty by definition, and that cold snapshot stayed
+         * the only one the dashboard ever saw -- all grey, RAM 0, everything
+         * on disk, forever. HITS was already per turn, which is why the white
+         * "routed now" flash worked while the residency colour never moved.
+         * inkling.c, kimi_k3.c, qwen38.c, deepseek_v41.c and colibri.c
+         * already do this. */
+        serve_tiers_emap(m);
     }
 }
 

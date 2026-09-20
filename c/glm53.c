@@ -3256,6 +3256,14 @@ static void serve_loop(GModel *m, Tok *tokenizer) {
             int gateway_gone = serve_one(m, tokenizer, &q) < 0;
             free(q.payload);
             if (gateway_gone) break;
+            /* La griglia va rimandata DOPO ogni turno, non solo dopo READY: al
+             * boot la cache degli esperti e vuota, e quella fotografia a freddo
+             * restava l'unica che il cruscotto avesse mai visto -- tutto grigio,
+             * RAM 0, tutto su disco, per sempre. Le HITS erano gia' per turno,
+             * ed e' per questo che il lampeggio funzionava e il colore no.
+             * inkling.c, kimi_k3.c, qwen38.c, deepseek_v41.c e colibri.c fanno
+             * gia' cosi'. */
+            emap_emit(m);
         } else if (!strcmp(verb, "IMAGE")) {
             /* annunciata: nessuna risposta, la si usa al SUBMIT che segue */
         } else if (!strcmp(verb, "BAD_FRAME")) {
