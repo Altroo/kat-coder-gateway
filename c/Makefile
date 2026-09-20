@@ -1355,6 +1355,9 @@ tests/test_spec_decode_state$(EXE): tests/test_spec_decode_state.c colibri.c st.
 tests/test_decode_batch$(EXE): tests/test_decode_batch.c decode_batch.h
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 
+tests/test_pin_pool$(EXE): tests/test_pin_pool.c pin_pool.h kv_prefix.h
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+
 tests/test_serve_codec$(EXE): tests/test_serve_codec.c serve_codec.h compat.h
 	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
 
