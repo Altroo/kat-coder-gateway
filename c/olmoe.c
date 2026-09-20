@@ -1711,6 +1711,7 @@ int main(int argc, char **argv) {
         Tok T;
         char tokpath[2048]; snprintf(tokpath, sizeof(tokpath), "%s/tokenizer.json", snap);
         tok_load(&T, tokpath);
+        coli_rt_term_arm();   /* SIGTERM must reach the save below (#1629) */
         serve_loop(&m, &T, ctx_cap);
         { const char *up = getenv("COLI_USAGE");
           if (up && *up) rt_save(up, 0); }
