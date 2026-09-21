@@ -34,6 +34,20 @@ def get_json(url, timeout=10):
         return json.load(response)
 
 
+def wait_for_turn(base_url, timeout=10):
+    """Wait for telemetry emitted immediately after the engine's DONE line."""
+    deadline = time.monotonic() + timeout
+    experts = {}
+    profile = {}
+    while time.monotonic() < deadline:
+        experts = get_json(f"{base_url}/experts")
+        profile = get_json(f"{base_url}/profile")
+        if experts.get("seq", 0) >= 1 and profile.get("turns"):
+            return experts, profile
+        time.sleep(0.01)
+    return experts, profile
+
+
 @unittest.skipUnless(FIXTURE.name and (FIXTURE / "config.json").is_file()
                      and (FIXTURE / "tokenizer.json").is_file(),
                      "COLI_DSV41_FIXTURE not set to a V4.1 container with a tokenizer")
@@ -68,8 +82,7 @@ class Dsv41DashboardTest(unittest.TestCase):
                                          data=body, headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(request, timeout=300) as response:
             cls.completion = json.load(response)
-        cls.experts = get_json(f"http://127.0.0.1:{cls.port}/experts")
-        cls.profile = get_json(f"http://127.0.0.1:{cls.port}/profile")
+        cls.experts, cls.profile = wait_for_turn(f"http://127.0.0.1:{cls.port}")
         cls.config = json.loads((FIXTURE / "config.json").read_text())
 
     @classmethod
@@ -89,6 +102,8 @@ class Dsv41DashboardTest(unittest.TestCase):
 
     def test_brain_lights_up_and_shows_residents(self):
         experts = self.experts
+        self.assertGreaterEqual(experts.get("seq", 0), 1,
+                                "no HITS reached the server after the turn")
         bits = experts["rows"] * experts["cols"]
         self.assertEqual(len(experts["hits"]), ((bits + 7) // 8) * 2)
         self.assertNotEqual(int(experts["hits"], 16), 0,
