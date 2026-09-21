@@ -195,6 +195,13 @@ KAT-Coder supports thinking on or off, but its Qwen3.6 template does not have a
 reliable graded high, medium, or low thinking budget. Deep mode can therefore
 take several minutes on CPU if the model reasons at length.
 
+The OpenCode provider allows ten minutes for a complete request, five minutes
+for response headers, and two minutes between streamed chunks. These explicit
+timeouts prevent a healthy CPU inference from being cancelled near one minute
+and retried without its final `finish_reason` event. The gateway sends keepalive
+chunks during prompt processing, so a stalled connection still fails instead of
+waiting silently for the full request timeout.
+
 Automatic AI-generated session titles are disabled because they otherwise launch
 a second model request beside the first coding turn. Sessions keep OpenCode's
 default timestamp title, leaving the single inference slot available for work.

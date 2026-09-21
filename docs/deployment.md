@@ -75,6 +75,12 @@ optional `deep` agent retains thinking mode and the server's 8,192-token ceiling
 for difficult work. It denies external directories and private environment
 files, and asks before `git push`.
 
+The provider settings use a ten-minute request timeout, a five-minute header
+timeout, and a two-minute streamed-chunk timeout. This accommodates CPU prompt
+processing while still detecting a stalled stream. Keep these values explicit
+because a client-side cancellation closes the gateway stream before its final
+`finish_reason` event and causes OpenCode to retry the completed text.
+
 ## Verification
 
 Run the existing real two-turn tool loop against the server:

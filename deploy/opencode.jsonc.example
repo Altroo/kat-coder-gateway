@@ -63,7 +63,10 @@
       "package": "@opencode/ai/providers/openai-compatible",
       "settings": {
         "baseURL": "{env:KAT_GATEWAY_BASE_URL}",
-        "apiKey": "{env:KAT_GATEWAY_API_KEY}"
+        "apiKey": "{env:KAT_GATEWAY_API_KEY}",
+        "timeout": 600000,
+        "headerTimeout": 300000,
+        "chunkTimeout": 120000
       },
       "models": {
         "kat-coder-v2.5-dev-colibri": {
