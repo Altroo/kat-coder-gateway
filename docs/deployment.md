@@ -68,11 +68,12 @@ Running `opencode` from a project directory loads the private API key, opens the
 SSH tunnel, and closes the tunnel when OpenCode exits.
 
 The example uses a lean tool profile for CPU inference. The default `build` and
-`research` agents disable thinking and cap each response at 2,048 tokens. They
-answer teaching and explanation requests in chat and create files only when the
-user explicitly requests file changes. The optional `deep` agent retains
-thinking mode and the server's 8,192-token ceiling for difficult work. It denies
-external directories and private environment files, and asks before `git push`.
+`research` agents disable thinking and cap each response at 1,024 tokens. They
+answer broad teaching and explanation requests in chat with at most 300 words,
+and create files only when the user explicitly requests file changes. The
+optional `deep` agent retains thinking mode and the server's 8,192-token ceiling
+for difficult work. It denies external directories and private environment
+files, and asks before `git push`.
 
 ## Verification
 

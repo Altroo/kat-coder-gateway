@@ -178,10 +178,10 @@ The configured model appears as
 select it manually.
 
 The default `build` and `research` agents use a fast profile with thinking off
-and a 2,048-token response ceiling. They answer explanation and teaching
-requests in chat and do not create files unless the user explicitly asks for
-file changes. This avoids turning a broad question into a long generated
-document.
+and a 1,024-token response ceiling. They answer broad explanation and teaching
+requests in chat with a compact overview of at most 300 words, and do not create
+files unless the user explicitly asks for file changes. This avoids turning a
+broad question into a long generated document.
 
 Switch to the primary `deep` agent for difficult debugging, architecture, or
 multi-step implementation work that benefits from thinking mode. The deep
