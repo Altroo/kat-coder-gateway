@@ -99,24 +99,42 @@ curl -H "Authorization: Bearer $KAT_GATEWAY_API_KEY" \
 ## Connect from a workstation
 
 Copy `.env.example` to `.env.production` in your local gateway checkout and set
-the SSH values. Then keep the tunnel helper running in a terminal:
+the SSH values. Never commit `.env.production`.
 
 ```sh
 cp .env.example .env.production
 chmod 600 .env.production
 editor .env.production
-./scripts/open_tunnel.sh
 ```
 
-The local OpenAI-compatible endpoint is then available at:
+The launcher opens the SSH tunnel automatically. You do not need to keep a
+second terminal open.
+
+Install one local command by linking the launcher into a directory on `PATH`:
+
+```sh
+mkdir -p "$HOME/.local/bin"
+ln -s /path/to/kat-coder-gateway/scripts/start_opencode.sh \
+  "$HOME/.local/bin/opencode"
+```
+
+Add this line to `~/.zshrc` if `~/.local/bin` is not already on `PATH`:
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+The private OpenAI-compatible endpoint is available through the temporary
+tunnel at:
 
 ```text
 http://127.0.0.1:18080/v1
 ```
 
-Confirm that the tunnel works:
+You can still open the tunnel manually for API testing:
 
 ```sh
+./scripts/open_tunnel.sh
 set -a
 . /path/to/kat-coder-gateway/.env.production
 set +a
@@ -132,23 +150,27 @@ Install OpenCode v2 on macOS:
 brew install anomalyco/tap/opencode-v2
 ```
 
-Copy [deploy/opencode.jsonc.example](deploy/opencode.jsonc.example) to the project
-you want OpenCode to edit:
+Install [deploy/opencode.jsonc.example](deploy/opencode.jsonc.example) as the
+global OpenCode configuration:
 
 ```sh
+mkdir -p "$HOME/.config/opencode"
 cp /path/to/kat-coder-gateway/deploy/opencode.jsonc.example \
-  /path/to/your-project/opencode.jsonc
+  "$HOME/.config/opencode/opencode.jsonc"
 ```
-
-You can instead place the file at
-`~/.config/opencode/opencode.jsonc` to use this model globally.
 
 Start OpenCode inside the Git repository it should edit:
 
 ```sh
 cd /path/to/your-project
-/path/to/kat-coder-gateway/scripts/start_opencode.sh
+opencode
 ```
+
+That is the complete daily workflow. The command loads the private credentials,
+opens the SSH tunnel, starts an isolated OpenCode session, and closes its tunnel
+when OpenCode exits. File tools are confined to the directory where the command
+was started and its Git worktree. External directories and private environment
+files are denied. `git push` requires confirmation.
 
 The configured model appears as
 `local-ai/kat-coder-v2.5-dev-colibri`. Use `/models` in OpenCode if you need to
@@ -157,7 +179,9 @@ select it manually.
 The example configuration keeps the core file, search, shell, edit, write, and
 question tools. It disables optional browser, web, skill, subagent, and code
 mode tools to reduce cold prompt processing on CPU. Remove a `false` entry from
-the `tools` object if you need that capability.
+the `tools` object if you need that capability. Shell commands run with your
+macOS user account, but OpenCode asks before crossing the active project
+boundary and the supplied policy denies that access.
 
 ## Call the API directly
 

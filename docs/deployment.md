@@ -34,8 +34,9 @@ http://127.0.0.1:18080/v1
 
 ## Workstation tunnel
 
-Set the SSH values in the workstation's private `.env.production`, then keep
-this running in a terminal:
+Set the SSH values in the workstation's private `.env.production`. The normal
+`opencode` launcher creates and removes the tunnel automatically. Use the
+manual helper only when testing the API without OpenCode:
 
 ```sh
 ./scripts/open_tunnel.sh
@@ -59,14 +60,17 @@ Install the current OpenCode v2 CLI on macOS:
 brew install anomalyco/tap/opencode-v2
 ```
 
-Copy `deploy/opencode.jsonc.example` to either the repository being edited or
-the global OpenCode configuration at `~/.config/opencode/opencode.jsonc`. Use
-`scripts/start_opencode.sh` so the private API key and base URL are loaded from
-`.env.production` before OpenCode starts.
+Copy `deploy/opencode.jsonc.example` to the global OpenCode configuration at
+`~/.config/opencode/opencode.jsonc`. Link `scripts/start_opencode.sh` to
+`~/.local/bin/opencode`, then put `~/.local/bin` before the Homebrew path.
+Running `opencode` from a project directory loads the private API key, opens the
+SSH tunnel, and closes the tunnel when OpenCode exits.
 
 The example uses a lean tool profile for CPU inference. It retains normal code
 inspection, search, shell, editing, writing, and interactive questions while
 omitting optional tool schemas that make the first prompt substantially larger.
+It denies external directories and private environment files, and asks before
+`git push`.
 
 ## Verification
 
