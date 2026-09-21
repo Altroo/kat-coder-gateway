@@ -64,6 +64,10 @@ the global OpenCode configuration at `~/.config/opencode/opencode.jsonc`. Use
 `scripts/start_opencode.sh` so the private API key and base URL are loaded from
 `.env.production` before OpenCode starts.
 
+The example uses a lean tool profile for CPU inference. It retains normal code
+inspection, search, shell, editing, writing, and interactive questions while
+omitting optional tool schemas that make the first prompt substantially larger.
+
 ## Verification
 
 Run the existing real two-turn tool loop against the server:

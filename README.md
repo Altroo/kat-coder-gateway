@@ -154,6 +154,11 @@ The configured model appears as
 `local-ai/kat-coder-v2.5-dev-colibri`. Use `/models` in OpenCode if you need to
 select it manually.
 
+The example configuration keeps the core file, search, shell, edit, write, and
+question tools. It disables optional browser, web, skill, subagent, and code
+mode tools to reduce cold prompt processing on CPU. Remove a `false` entry from
+the `tools` object if you need that capability.
+
 ## Call the API directly
 
 ```sh

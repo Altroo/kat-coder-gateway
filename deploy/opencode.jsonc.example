@@ -1,13 +1,21 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "local-ai/kat-coder-v2.5-dev-colibri",
+  "tools": {
+    "browser": false,
+    "execute": false,
+    "skill": false,
+    "subagent": false,
+    "webfetch": false,
+    "websearch": false
+  },
   "providers": {
     "local-ai": {
       "name": "Local KAT coding agent",
+      "env": ["KAT_GATEWAY_API_KEY"],
       "package": "@opencode/ai/providers/openai-compatible",
       "settings": {
-        "baseURL": "{env:KAT_GATEWAY_BASE_URL}",
-        "apiKey": "{env:KAT_GATEWAY_API_KEY}"
+        "baseURL": "{env:KAT_GATEWAY_BASE_URL}"
       },
       "models": {
         "kat-coder-v2.5-dev-colibri": {

@@ -21,6 +21,9 @@ set +a
 : "${KAT_GATEWAY_SSH_KEY:?missing KAT_GATEWAY_SSH_KEY}"
 
 exec ssh -N \
+    -o ExitOnForwardFailure=yes \
+    -o ServerAliveInterval=30 \
+    -o ServerAliveCountMax=3 \
     -L "$KAT_GATEWAY_LOCAL_PORT:127.0.0.1:$KAT_GATEWAY_REMOTE_PORT" \
     -i "$KAT_GATEWAY_SSH_KEY" \
     "$KAT_GATEWAY_SSH_USER@$KAT_GATEWAY_SSH_HOST"
