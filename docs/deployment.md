@@ -6,15 +6,16 @@ reached from a workstation through an SSH tunnel.
 
 ## Runtime limits
 
-- Context window: 32,768 tokens
+- Context window: 65,536 tokens
 - Maximum generated output: 8,192 tokens
 - One request and one KV slot at a time
 - CPU only, eight physical inference threads
 - Deterministic, non-thinking generation by default
 
-The model supports a larger theoretical context, but 32K is the practical
-starting point for this CPU server. It leaves RAM for the hosted applications
-and avoids turning long prompt prefill into an unusable wait.
+The model supports a larger theoretical context, but 64K is the practical
+ceiling for this CPU server. It leaves RAM for the hosted applications while
+giving longer coding sessions room before compaction. Large uncached prompts
+remain expensive on CPU.
 
 ## Server service
 

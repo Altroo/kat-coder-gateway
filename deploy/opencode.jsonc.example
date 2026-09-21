@@ -65,7 +65,7 @@
             "output": ["text"]
           },
           "limit": {
-            "context": 32768,
+            "context": 65536,
             "output": 8192
           },
           "compatibility": {

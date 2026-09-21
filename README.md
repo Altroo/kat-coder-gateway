@@ -25,15 +25,16 @@ included in this repository.
 
 - Model: KAT-Coder V2.5 Dev, Colibri int4 gs64
 - Runtime: Colibri v1.12.0 Qwen3.6 engine
-- Context window: 32,768 tokens
+- Context window: 65,536 tokens
 - Maximum output: 8,192 tokens
 - Inference: CPU only, eight physical threads
 - Concurrency: one request and one KV slot
 - API bind: `127.0.0.1:18080`
 
-The model supports a larger theoretical context. This project starts at 32K
-because it provides useful coding context without consuming unnecessary RAM or
-making CPU prompt processing excessively slow.
+The model supports a larger theoretical context. This project uses 64K as a
+practical ceiling for longer coding sessions while retaining RAM for the other
+applications on the CPU server. Very large uncached prompts remain slower than
+short incremental turns.
 
 ## Install on the server
 
