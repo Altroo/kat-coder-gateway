@@ -35,8 +35,8 @@ class FakeEngine:
         self.stop_requests = 0
 
     def generate(self, prompt, maximum, temperature, top_p, on_text, cache_slot=0,
-                 cancelled=None, grammar=None, stopped=None, on_accept=None):
-        self.calls.append((prompt, maximum, temperature, top_p, cache_slot, grammar))
+                 cancelled=None, grammar=None, stopped=None, on_accept=None, pin=False):
+        self.calls.append((prompt, maximum, temperature, top_p, cache_slot, grammar, pin))
         if on_accept is not None:                 # simulate the engine's ACCEPT frame (#597)
             on_accept({"prompt_tokens": 7})
         for chunk in ("Hé", "llo"):
@@ -1492,6 +1492,32 @@ class HTTPTest(unittest.TestCase):
         self.assertIsNotNone(queue_wait)
         self.assertIn("<|user|>Hi<|assistant|><think></think>", self.engine.calls[-1][0])
         self.assertEqual(self.engine.calls[-1][4], 1)
+
+    def test_qwen36_chat_pins_prompt_state_for_the_next_turn(self):
+        """The raw generated stream need not round-trip token-for-token.
+
+        Saving the state at prompt end lets the next OpenAI chat turn reuse
+        its stable prefix instead of paying for a full transcript prefill.
+        """
+        with patch("openai_server.ARCH", "qwen36"):
+            with self.request("/v1/chat/completions", {
+                "model": "test-model",
+                "messages": [{"role": "user", "content": "Hi"}],
+                "stream": True,
+            }) as response:
+                response.read()
+        self.assertTrue(self.engine.calls[-1][6])
+
+    def test_qwen36_chat_prompt_pin_has_kill_switch(self):
+        with patch("openai_server.ARCH", "qwen36"), \
+             patch.dict(os.environ, {"COLI_CHAT_PIN": "0"}):
+            with self.request("/v1/chat/completions", {
+                "model": "test-model",
+                "messages": [{"role": "user", "content": "Hi"}],
+                "stream": True,
+            }) as response:
+                response.read()
+        self.assertFalse(self.engine.calls[-1][6])
 
     def test_kimi_chat_completion_uses_multiturn_wire_payload(self):
         with patch("openai_server.ARCH", "kimi"):

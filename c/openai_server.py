@@ -4307,6 +4307,23 @@ class APIHandler(BaseHTTPRequestHandler):
         completion_id = id_prefix + uuid.uuid4().hex
         created = int(time.time())
 
+        # qwen36 mixes attention with recurrent DeltaNet layers.  Its ordinary
+        # prefix record describes the state *after generation*, but OpenAI
+        # clients reconstruct the assistant turn from content and
+        # reasoning_content before sending it back.  Stop markers and trailing
+        # whitespace are intentionally normalised by that round trip, so the
+        # reconstructed transcript is often not a strict token prefix of the
+        # raw generated stream and the whole conversation gets re-prefilled.
+        #
+        # The engine's pin snapshot is taken at the end of the rendered prompt,
+        # before generation mutates the recurrent state.  That prompt is an
+        # exact prefix of the next chat turn even when the generated reply is
+        # normalised, so pin normal qwen36 chats as well as Brio requests.  The
+        # switch is a production kill switch; pinning is only an optimisation.
+        chat_pin = (chat and ARCH == "qwen36" and
+                    os.environ.get("COLI_CHAT_PIN", "1") != "0")
+        pin_kw = {"pin": True} if chat_pin else {}
+
         with self.server.scheduler.admit(self.client_disconnected, cache_slot) as admission:
             queue_wait, cache_slot = admission
             queue_headers = {"x-colibri-queue-wait-ms": str(round(queue_wait * 1000))}
@@ -4324,7 +4341,7 @@ class APIHandler(BaseHTTPRequestHandler):
                     self.client_disconnected, grammar=grammar, stopped=generation_stopped,
                     **({"on_tool": sideband.feed} if sideband.enabled else {}),
                     **({"audio": audio} if audio else {}),
-                    **({"image": image} if image is not None else {}))
+                    **({"image": image} if image is not None else {}), **pin_kw)
                 stop_filter.finish()
                 sideband.finish()
                 text = "".join(output)
@@ -4506,7 +4523,7 @@ class APIHandler(BaseHTTPRequestHandler):
                     self.client_disconnected, grammar=grammar, stopped=generation_stopped,
                     **({"on_tool": sideband.feed} if sideband.enabled else {}),
                     on_accept=start_stream, **({"audio": audio} if audio else {}),
-                    **({"image": image} if image is not None else {}))
+                    **({"image": image} if image is not None else {}), **pin_kw)
                 stop_filter.finish()
                 sideband.finish()
                 if think:
@@ -4538,7 +4555,7 @@ class APIHandler(BaseHTTPRequestHandler):
                     prompt, maximum, temperature, top_p, stop_filter.feed, cache_slot,
                     self.client_disconnected, grammar=grammar, stopped=stop_filter.stopped,
                     on_accept=start_stream, **({"audio": audio} if audio else {}),
-                    **({"image": image} if image is not None else {}))
+                    **({"image": image} if image is not None else {}), **pin_kw)
                 stop_filter.finish()
                 if content_split:
                     content_split.close()
