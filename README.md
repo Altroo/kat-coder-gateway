@@ -185,12 +185,23 @@ Automatic AI-generated session titles are disabled because they otherwise launch
 a second model request beside the first coding turn. Sessions keep OpenCode's
 default timestamp title, leaving the single inference slot available for work.
 
-The example configuration keeps the core file, search, shell, edit, write, and
-question tools. It disables optional browser, web, skill, subagent, and code
-mode tools to reduce cold prompt processing on CPU. Remove a `false` entry from
-the `tools` object if you need that capability. Shell commands run with your
-macOS user account, but OpenCode asks before crossing the active project
-boundary and the supplied policy denies that access.
+The build agent uses a compact system prompt suited to the local CPU model. It
+keeps the normal inspect, edit, verify, safety, and task-completion rules without
+making every new session prefill OpenCode's much larger generic coding prompt.
+
+The default `build` agent omits web tool schemas for lower latency. Switch to
+the primary `research` agent in OpenCode when you need web search or page
+fetching, then switch back to `build` for the leanest coding loop. From the
+terminal, `opencode run --agent research "your question"` selects it directly.
+
+The example configuration keeps read, edit, and shell as the minimal coding
+tool set. Search, listing, testing, and Git remain available through shell
+commands without sending separate tool schemas on every request. Optional
+browser, language-server, todo, question, skill, and subagent tools stay off to
+reduce cold prompt processing on CPU. Web access is isolated in the `research`
+agent so it is available without slowing the default coding agent. Shell
+commands run with your macOS user account, but OpenCode asks before crossing the
+active project boundary and the supplied policy denies that access.
 
 ## Call the API directly
 
