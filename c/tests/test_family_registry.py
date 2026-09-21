@@ -32,13 +32,20 @@ from family_registry import (
 
 
 def _readmes(repo):
-    """Ogni README del repo, trovato e non elencato.
+    """Ogni README upstream del repo, trovato e non elencato.
 
     Una lista scritta a mano qui avrebbe lo stesso difetto che questi test
     esistono per prendere: chi aggiunge README.fr.md non tocca il test, il
     test continua a passare, e il lettore francese non trova il modello.
+
+    I fork applicativi possono usare README.md per le proprie istruzioni e
+    conservare il documento upstream come UPSTREAM_COLIBRI_README.md. In quel
+    caso controlliamo quest'ultimo insieme alle traduzioni upstream.
     """
-    return sorted(repo.glob("README*.md"))
+    root = repo / "UPSTREAM_COLIBRI_README.md"
+    if not root.exists():
+        root = repo / "README.md"
+    return [root, *sorted(repo.glob("README.*.md"))]
 
 
 def qwen_geometry(config, context, _model_dir):

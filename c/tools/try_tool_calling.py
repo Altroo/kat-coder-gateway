@@ -13,6 +13,7 @@ Exit status is 0 only if every stage passed, so it can be used as a smoke test.
 """
 import argparse
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
@@ -37,19 +38,27 @@ WEATHER_TOOL = {
 FAKE_WEATHER = {"city": "Rome", "temp_c": 31, "conditions": "sunny"}
 
 
-def discover_model(url, timeout):
+def request_headers(api_key=None):
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    return headers
+
+
+def discover_model(url, timeout, api_key=None):
     """Ask the server which model it is serving, so the caller never has to guess the id."""
-    with urllib.request.urlopen(url + "/v1/models", timeout=timeout) as resp:
+    req = urllib.request.Request(url + "/v1/models", headers=request_headers(api_key))
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
         data = json.loads(resp.read()).get("data") or []
     if not data:
         raise RuntimeError("server reports no models")
     return data[0]["id"]
 
 
-def post(url, body, timeout):
+def post(url, body, timeout, api_key=None):
     req = urllib.request.Request(url + "/v1/chat/completions",
                                  data=json.dumps(body).encode(),
-                                 headers={"Content-Type": "application/json"})
+                                 headers=request_headers(api_key))
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read())
 
@@ -61,11 +70,13 @@ def main():
     ap.add_argument("--raw", action="store_true", help="print raw message objects")
     ap.add_argument("--tool-choice", default=None, help='e.g. "required" to force a call')
     ap.add_argument("--model", default=None, help="model id (default: ask the server)")
+    ap.add_argument("--api-key", default=os.environ.get("KAT_GATEWAY_API_KEY"),
+                    help="gateway key (default: KAT_GATEWAY_API_KEY environment variable)")
     args = ap.parse_args()
     url = args.url.rstrip("/")
 
     try:
-        model = args.model or discover_model(url, 30)
+        model = args.model or discover_model(url, 30, args.api_key)
     except (urllib.error.URLError, OSError) as e:
         print(f"FAIL: cannot reach {url} -- is the server running?  ({e})")
         return 2
@@ -81,7 +92,7 @@ def main():
 
     print("== turn 1: asking the model to call the tool ==")
     try:
-        out = post(url, body, args.timeout)
+        out = post(url, body, args.timeout, args.api_key)
     except urllib.error.URLError as e:
         print(f"FAIL: cannot reach {url} -- is the server running?  ({e})")
         return 2
@@ -121,7 +132,7 @@ def main():
                      "content": json.dumps(FAKE_WEATHER)})
     body["messages"] = messages
     body.pop("tool_choice", None)
-    out2 = post(url, body, args.timeout)
+    out2 = post(url, body, args.timeout, args.api_key)
     reply = (out2["choices"][0]["message"].get("content") or "").strip()
     if args.raw:
         print(json.dumps(out2["choices"][0]["message"], indent=2, ensure_ascii=False))

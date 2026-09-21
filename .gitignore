@@ -147,6 +147,11 @@ c/*.obj
 .DS_Store
 **/.DS_Store
 
+# private deployment and workstation configuration
+.env
+.env.production
+.hf-venv/
+
 # compiled objects
 *.o
 

@@ -16,12 +16,14 @@ from urllib.request import Request, urlopen
 from pathlib import Path
 
 from openai_server import (APIError, APIHandler, APIServer, ClientCancelled,
-                           DEFAULT_CHAT_STOP_SEQUENCES, END, GenerationScheduler,
+                           DEFAULT_CHAT_STOP_SEQUENCES, DEFAULT_QWEN36_CHAT_STOP_SEQUENCES,
+                           END, GenerationScheduler,
                            READY, Engine, InklingStreamSplit, StopFilter, ThinkingStreamSplit,
                            _engine_error, _image_bytes_from_url, cap_for_arch, conversation_cache_slot, model_arch,
                            generation_options, parse_tool_calls, parse_dsv4_tool_calls,
                            parse_arch_tool_calls, parse_k3_tool_calls, parse_qwen38_tool_calls,
                            read_engine_turn, render_chat, render_chat_kimi, render_chat_olmoe,
+                           render_chat_qwen,
                            render_chat_qwen38, render_chat_v4, _dsv4_tool_calls, serve,
                            split_thinking_reply,
                            stop_policy, tune_child_env)
@@ -167,6 +169,87 @@ class TemplateTest(unittest.TestCase):
         # from the declared schema: city stays a string, days becomes an int.
         self.assertEqual(json.loads(calls[0]["function"]["arguments"]),
                          {"city": "Rome", "days": 3})
+
+    def test_qwen36_kat_renders_tool_history_and_complex_arguments(self):
+        tools = [{"type": "function", "function": {
+            "name": "edit_files", "description": "Apply edits",
+            "parameters": {"type": "object", "properties": {
+                "edits": {"type": "array", "items": {"type": "object"}},
+                "dry_run": {"type": "boolean"}}, "required": ["edits"]}}}]
+        prompt = render_chat_qwen([
+            {"role": "system", "content": "You are a coding agent."},
+            {"role": "user", "content": "Update both files."},
+            {"role": "assistant", "content": None, "tool_calls": [{
+                "id": "call_previous", "type": "function", "function": {
+                    "name": "edit_files", "arguments": json.dumps({
+                        "edits": [{"path": "a.js", "text": "const x = 1;"}],
+                        "dry_run": True})}}]},
+            {"role": "tool", "tool_call_id": "call_previous", "content": "ok"},
+            {"role": "system", "content": "Continue carefully."},
+        ], tools=tools)
+        self.assertIn("# Tools\n\nYou have access to the following functions:", prompt)
+        self.assertIn("You are a coding agent.<|im_end|>", prompt)
+        self.assertIn("<function=edit_files>", prompt)
+        self.assertIn('<parameter=edits>\n[{"path": "a.js", "text": "const x = 1;"}]',
+                      prompt)
+        self.assertIn("<tool_response>\nok\n</tool_response>", prompt)
+        self.assertIn("<|im_start|>system\nContinue carefully.<|im_end|>", prompt)
+
+        with patch("openai_server.ARCH", "qwen36"):
+            text, calls = parse_arch_tool_calls(
+                "<tool_call>\n<function=edit_files>\n"
+                "<parameter=edits>\n[{\"path\":\"a.js\",\"text\":\"x\"}]\n</parameter>\n"
+                "<parameter=dry_run>\nfalse\n</parameter>\n"
+                "</function>\n</tool_call>", tools)
+        self.assertEqual(text, "")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(json.loads(calls[0]["function"]["arguments"]), {
+            "edits": [{"path": "a.js", "text": "x"}], "dry_run": False})
+
+    def test_qwen36_kat_honours_tool_choice(self):
+        tools = [{"type": "function", "function": {"name": "read_file"}},
+                 {"type": "function", "function": {"name": "write_file"}}]
+        disabled = render_chat_qwen([{"role": "user", "content": "Hi"}],
+                                    tools=tools, tool_choice="none")
+        self.assertNotIn("<tools>", disabled)
+        forced = render_chat_qwen([{"role": "user", "content": "Read it"}],
+                                  tools=tools, tool_choice={
+                                      "type": "function", "function": {"name": "read_file"}})
+        self.assertIn('"name": "read_file"', forced)
+        self.assertNotIn('"name": "write_file"', forced)
+        self.assertIn("You must call the function `read_file`", forced)
+
+    def test_qwen36_kat_strictly_recovers_a_missing_outer_wrapper(self):
+        tools = [{"type": "function", "function": {
+            "name": "get_weather", "parameters": {"type": "object",
+                "properties": {"city": {"type": "string"}},
+                "required": ["city"]}}}]
+        reply = ("<function=get_weather>\n<parameter=city>\nRome\n</parameter>\n"
+                 "</function>")
+        with patch("openai_server.ARCH", "qwen36"):
+            text, calls = parse_arch_tool_calls(reply, tools)
+        self.assertEqual(text, "")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["function"]["name"], "get_weather")
+        self.assertEqual(json.loads(calls[0]["function"]["arguments"]), {"city": "Rome"})
+        # IDs are stable if the finished model reply is parsed more than once.
+        with patch("openai_server.ARCH", "qwen36"):
+            _text, again = parse_arch_tool_calls(reply, tools)
+        self.assertEqual(calls[0]["id"], again[0]["id"])
+
+    def test_qwen36_kat_rejects_undeclared_or_invalid_calls(self):
+        tools = [{"type": "function", "function": {
+            "name": "edit", "parameters": {"type": "object",
+                "properties": {"edits": {"type": "array"}},
+                "required": ["edits"]}}}]
+        with patch("openai_server.ARCH", "qwen36"):
+            _text, undeclared = parse_arch_tool_calls(
+                "<function=delete_everything></function>", tools)
+            _text, invalid = parse_arch_tool_calls(
+                "<function=edit>\n<parameter=edits>\nnot-json\n</parameter>\n</function>",
+                tools)
+        self.assertEqual(undeclared, [])
+        self.assertEqual(invalid, [])
 
     def test_qwen38_tool_choice_none_suppresses_the_declaration(self):
         tool = {"type": "function", "function": {"name": "f", "description": "d"}}
@@ -444,6 +527,11 @@ class TemplateTest(unittest.TestCase):
             }, True), (("END",), True))
         with patch("openai_server.ARCH", "inkling"):
             self.assertEqual(stop_policy({}, True), ((), False))
+            self.assertEqual(stop_policy({"stop": "END"}, True), (("END",), False))
+        with patch("openai_server.ARCH", "qwen36"):
+            self.assertEqual(stop_policy({}, True),
+                             (DEFAULT_QWEN36_CHAT_STOP_SEQUENCES, False))
+            self.assertEqual(stop_policy({}, False), ((), False))
             self.assertEqual(stop_policy({"stop": "END"}, True), (("END",), False))
         with self.assertRaises(APIError):
             stop_policy({"x_colibri_ignore_leading_stop": "yes"}, True)

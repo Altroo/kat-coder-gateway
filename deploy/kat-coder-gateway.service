@@ -1,0 +1,27 @@
+[Unit]
+Description=KAT-Coder Gateway (KAT-Coder via Colibri)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kat-coder
+Group=kat-coder
+WorkingDirectory=/opt/kat-coder-gateway
+EnvironmentFile=/opt/kat-coder-gateway/.env.production
+ExecStart=/bin/sh /opt/kat-coder-gateway/deploy/run_gateway.sh
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=15min
+TimeoutStopSec=2min
+KillSignal=SIGINT
+Nice=5
+OOMScoreAdjust=500
+LimitNOFILE=65536
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

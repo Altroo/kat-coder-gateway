@@ -582,7 +582,7 @@ def parse_arch_tool_calls(reply, tools, tool_reply=None):
             _sideband_text, calls = parse_k3_tool_calls(tool_reply, tools)
             return reply.strip(), calls
         return parse_k3_tool_calls(reply, tools)  # compatibility with pre-#1147 engines
-    if ARCH == "qwen38":
+    if ARCH in ("qwen36", "qwen38"):
         return parse_qwen38_tool_calls(reply, tools)
     return parse_tool_calls(reply, tools)
 
@@ -597,6 +597,12 @@ def _tool_stream_markers():
         return (v41_dsml.TOOL_CALLS_PREFIX, v41_dsml.TOOL_CALL_PREFIX)
     if ARCH == "kimi":
         return (K3_TOOLS_OPEN,)
+    if ARCH in ("qwen36", "qwen38"):
+        # Quantized KAT occasionally omits only the outer <tool_call> wrapper
+        # while still emitting one complete, declared <function=...> block.
+        # The final parser recovers that strict form; suppress it from streamed
+        # visible content just as we suppress the canonical outer marker.
+        return (BOX_START, "<function=")
     return (BOX_START,)
 
 
@@ -1230,29 +1236,86 @@ def render_chat_olmoe(messages, enable_thinking=False, reasoning_effort=None, to
 
 def render_chat_qwen(messages, enable_thinking=False, reasoning_effort=None, tools=None,
                      tool_choice=None):
-    """Text-only subset of Qwen3.6's chat_template: <|im_start|>role\\n ...
-    <|im_end|>\\n frames, then the generation prompt. The official template
-    opens a mandatory <think> block after `<|im_start|>assistant\\n` — the
-    model was never trained on the bare `assistant\\n` state, and greedy
-    argmax there lands on an EOS special (measured: gen=0). With thinking
-    disabled the template pre-closes the block instead; both branches are
-    mirrored here byte for byte."""
+    """Text-only Qwen3.6/KAT chat template, including native tool calls.
+
+    KAT-Coder V2.5 uses the same XML-ish tool declaration/call format as the
+    newer Qwen template below.  Keep the renderers separate because Qwen3.8
+    also injects model-specific reasoning-effort instructions, while KAT does
+    not.  The mandatory ``<think>`` generation prefix remains byte-identical
+    to the checkpoint template in both thinking modes.
+    """
     if not isinstance(messages, list) or not messages:
         raise APIError(400, "`messages` must be a non-empty array.", "messages")
-    if tools or tool_choice not in (None, "none"):
-        raise APIError(400, "Tool use is not wired up for the qwen36 engine yet.",
-                       "tools", "unsupported_parameter")
+    forced = None
+    if isinstance(tool_choice, dict):
+        forced = _tool_choice_name(tool_choice)
+        if forced:
+            tools = [tool for tool in (tools or [])
+                     if ((tool.get("function", tool) if isinstance(tool, dict) else {})
+                         .get("name") == forced)]
+    elif tool_choice == "none":
+        tools = None
+    if tools is not None and not isinstance(tools, list):
+        raise APIError(400, "`tools` must be an array.", "tools")
+
     parts = []
-    for index, message in enumerate(messages):
+    first = messages[0]
+    first_role = first.get("role") if isinstance(first, dict) else None
+    if first_role == "developer":
+        first_role = "system"
+    system_text = ""
+    start = 0
+    if first_role == "system":
+        raw = first.get("content")
+        system_text = content_text(raw, "messages.0.content").strip() if raw is not None else ""
+        start = 1
+
+    if tools:
+        block = _qwen38_tool_block(tools)
+        if forced:
+            block += f"\n\nYou must call the function `{forced}`. Do not answer directly."
+        elif tool_choice == "required":
+            block += "\n\nYou must call one of the functions above. Do not answer directly."
+        if system_text:
+            block += "\n\n" + system_text
+        parts.append(f"<|im_start|>system\n{block}<|im_end|>\n")
+    elif system_text:
+        parts.append(f"<|im_start|>system\n{system_text}<|im_end|>\n")
+
+    for index, message in enumerate(messages[start:], start=start):
         if not isinstance(message, dict):
             raise APIError(400, "Each message must be an object.", f"messages.{index}")
         role = message.get("role")
         if role == "developer":
             role = "system"
-        if role not in ("system", "user", "assistant"):
+        if role not in ("system", "user", "assistant", "tool"):
             raise APIError(400, f"Unsupported role {role!r}.", f"messages.{index}.role")
         raw = message.get("content")
-        text = content_text(raw, f"messages.{index}.content") if raw is not None else ""
+        text = (content_text(raw, f"messages.{index}.content").strip()
+                if raw is not None else "")
+        if role == "tool":
+            # The checkpoint groups consecutive results into one user turn.
+            prev = messages[index - 1].get("role") if index > 0 and isinstance(
+                messages[index - 1], dict) else None
+            nxt = messages[index + 1].get("role") if index + 1 < len(messages) and isinstance(
+                messages[index + 1], dict) else None
+            if prev != "tool":
+                parts.append("<|im_start|>user")
+            parts.append(f"\n<tool_response>\n{text}\n</tool_response>")
+            if nxt != "tool":
+                parts.append("<|im_end|>\n")
+            continue
+        if role == "assistant":
+            reasoning = message.get("reasoning_content", "")
+            if not isinstance(reasoning, str):
+                raise APIError(400, "`reasoning_content` must be a string.",
+                               f"messages.{index}.reasoning_content")
+            rendered = f"<think>\n{reasoning.strip()}\n</think>\n\n{text}"
+            calls = message.get("tool_calls")
+            if calls:
+                rendered += _qwen38_tool_calls(calls, bool(text), index)
+            parts.append(f"<|im_start|>assistant\n{rendered}<|im_end|>\n")
+            continue
         parts.append(f"<|im_start|>{role}\n{text}<|im_end|>\n")
     parts.append("<|im_start|>assistant\n")
     parts.append("<think>\n" if enable_thinking else "<think>\n\n</think>\n\n")
@@ -1325,6 +1388,7 @@ def _qwen38_tool_calls(tool_calls, has_content, index):
 
 QWEN38_CALL_RE = re.compile(
     r"<tool_call>\s*<function=([^>\n]+)>\s*(.*?)</function>\s*</tool_call>", re.S)
+QWEN38_FUNCTION_RE = re.compile(r"<function=([^>\n]+)>\s*(.*?)</function>", re.S)
 QWEN38_PARAM_RE = re.compile(r"<parameter=([^>\n]+)>\n(.*?)\n</parameter>", re.S)
 
 
@@ -1337,34 +1401,65 @@ def parse_qwen38_tool_calls(reply, tools=None):
     re-read it as JSON, which restores numbers and booleans without guessing at
     anything the schema did not promise."""
     schema = {}
+    required = {}
     for tool in (tools or []):
         fn = tool.get("function", tool) if isinstance(tool, dict) else {}
         params = (fn.get("parameters") or {}).get("properties") or {}
-        if isinstance(params, dict):
-            schema[fn.get("name")] = params
+        name = fn.get("name")
+        if isinstance(name, str) and name and isinstance(params, dict):
+            schema[name] = params
+            required[name] = set((fn.get("parameters") or {}).get("required") or [])
+
+    canonical = list(QWEN38_CALL_RE.finditer(reply or ""))
+    recovered_inner = not canonical
+    matches = canonical or list(QWEN38_FUNCTION_RE.finditer(reply or ""))
     calls = []
-    for match in QWEN38_CALL_RE.finditer(reply or ""):
+    invalid = []
+    for position, match in enumerate(matches):
         name = match.group(1).strip()
+        if tools and name not in schema:
+            invalid.append(f"undeclared tool {name!r}")
+            continue
         args = {}
+        valid = True
         for key, raw in QWEN38_PARAM_RE.findall(match.group(2)):
             key = key.strip()
             declared = (schema.get(name) or {}).get(key) or {}
             kind = declared.get("type") if isinstance(declared, dict) else None
+            if isinstance(kind, list):
+                kind = next((item for item in kind if item != "null"), None)
             if kind in (None, "string"):
                 args[key] = raw
             else:
                 try:
                     args[key] = json.loads(raw)
                 except (TypeError, ValueError):
-                    args[key] = raw
+                    invalid.append(f"invalid {kind} parameter {key!r} for {name!r}")
+                    valid = False
+        missing = required.get(name, set()) - set(args)
+        if missing:
+            invalid.append(f"missing required parameters for {name!r}: {sorted(missing)!r}")
+            valid = False
+        if not valid:
+            continue
+        arguments = json.dumps(args, ensure_ascii=False, separators=(",", ":"))
+        stable = hashlib.sha256(
+            f"{position}\0{name}\0{arguments}".encode("utf-8")).hexdigest()[:24]
         calls.append({
-            "id": f"call_{uuid.uuid4().hex[:24]}",
+            "id": f"call_{stable}",
             "type": "function",
-            "function": {"name": name,
-                         "arguments": json.dumps(args, ensure_ascii=False)},
+            "function": {"name": name, "arguments": arguments},
         })
-    text = QWEN38_CALL_RE.sub("", reply or "")
-    if not calls and tools and "<tool_call>" in (reply or ""):
+    strip_re = QWEN38_FUNCTION_RE if recovered_inner else QWEN38_CALL_RE
+    text = strip_re.sub("", reply or "") if matches else (reply or "")
+    if calls and recovered_inner:
+        sys.stderr.write("[api] qwen tool call recovered from a complete inner function block\n")
+        sys.stderr.flush()
+    if invalid:
+        sys.stderr.write("[api] qwen tool call rejected: " + "; ".join(invalid) + "\n")
+        sys.stderr.flush()
+    if not calls and tools and ("<tool_call>" in (reply or "")
+                                or "<function=" in (reply or "")):
         sys.stderr.write("[api] qwen38 tool markers present but no call parsed -- "
                          "possibly truncated or mangled output\n")
         sys.stderr.flush()
@@ -2482,6 +2577,7 @@ GENERIC_JSON_GBNF = (
 )
 
 DEFAULT_CHAT_STOP_SEQUENCES = ("<|user|>", "<|observation|>")
+DEFAULT_QWEN36_CHAT_STOP_SEQUENCES = ("<|im_end|>", "<|im_start|>")
 
 
 def parse_stop_sequences(body):
@@ -2549,6 +2645,12 @@ def stop_policy(body, chat):
         # occasional leading GLM marker patiently; client-provided stops remain
         # strict unless the extension is explicitly requested.
         return DEFAULT_CHAT_STOP_SEQUENCES, True
+    if chat and ARCH == "qwen36" and not sequences:
+        # KAT normally ends with the special im_end token, which the native
+        # engine handles by token id. Quantized checkpoints can instead spell
+        # the marker as ordinary text pieces. Keep that template boundary out
+        # of OpenAI responses without overriding an explicit client stop.
+        return DEFAULT_QWEN36_CHAT_STOP_SEQUENCES, False
     return sequences, ignore_leading
 
 

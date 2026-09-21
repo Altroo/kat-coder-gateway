@@ -1,0 +1,32 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "local-ai/kat-coder-v2.5-dev-colibri",
+  "providers": {
+    "local-ai": {
+      "name": "Local KAT coding agent",
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "{env:KAT_GATEWAY_BASE_URL}",
+        "apiKey": "{env:KAT_GATEWAY_API_KEY}"
+      },
+      "models": {
+        "kat-coder-v2.5-dev-colibri": {
+          "modelID": "kat-coder-v2.5-dev-colibri",
+          "name": "KAT-Coder V2.5 Dev (local CPU)",
+          "capabilities": {
+            "tools": true,
+            "input": ["text"],
+            "output": ["text"]
+          },
+          "limit": {
+            "context": 32768,
+            "output": 8192
+          },
+          "body": {
+            "enable_thinking": false
+          }
+        }
+      }
+    }
+  }
+}
