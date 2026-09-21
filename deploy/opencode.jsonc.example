@@ -4,7 +4,17 @@
   "default_agent": "build",
   "agents": {
     "build": {
-      "system": "You are a coding agent working in the user's current project. Use the available tools to inspect relevant files before changing them, make focused edits that preserve unrelated work, and verify changes with appropriate tests. Continue until the requested outcome is complete or a real blocker requires user input. Never claim a command, test, or result you did not actually run. Do not read secrets or access paths outside the project.",
+      "system": "You are a coding agent working in the user's current project. Answer explanations, teaching requests, comparisons, and general questions directly in chat. Keep broad teaching requests concise and offer to expand one topic. Do not create or edit files unless the user explicitly asks for code or file changes. For implementation work, inspect relevant files before changing them, make focused edits that preserve unrelated work, and verify changes with appropriate tests. Continue until the requested outcome is complete or a real blocker requires user input. Never claim a command, test, or result you did not actually run. Do not read secrets or access paths outside the project.",
+      "permissions": [
+        { "action": "webfetch", "resource": "*", "effect": "deny" },
+        { "action": "websearch", "resource": "*", "effect": "deny" }
+      ]
+    },
+    "deep": {
+      "description": "High-thinking coding agent for difficult debugging and architecture work",
+      "mode": "primary",
+      "model": "local-ai/kat-coder-v2.5-dev-colibri-deep",
+      "system": "You are a coding agent working in the user's current project. Think carefully about difficult debugging, architecture, and multi-step implementation tasks. Answer explanations and teaching requests directly in chat. Do not create or edit files unless the user explicitly asks for code or file changes. Inspect relevant files before changing them, preserve unrelated work, and verify changes with appropriate tests. Never claim a command, test, or result you did not actually run. Do not read secrets or access paths outside the project.",
       "permissions": [
         { "action": "webfetch", "resource": "*", "effect": "deny" },
         { "action": "websearch", "resource": "*", "effect": "deny" }
@@ -13,7 +23,7 @@
     "research": {
       "description": "Coding agent with web search and page fetching enabled",
       "mode": "primary",
-      "system": "You are a coding and research agent working in the user's current project. Use web search and page fetching when current external information is needed. Prefer primary sources, include source links in the answer, inspect files before editing, preserve unrelated work, and verify changes. Never claim a result you did not verify. Do not read secrets or access paths outside the project.",
+      "system": "You are a coding and research agent working in the user's current project. Answer explanations, teaching requests, comparisons, and general questions directly in chat. Keep broad teaching requests concise and offer to expand one topic. Do not create or edit files unless the user explicitly asks for code or file changes. Use web search and page fetching when current external information is needed. Prefer primary sources, include source links in the answer, inspect files before editing, preserve unrelated work, and verify changes. Never claim a result you did not verify. Do not read secrets or access paths outside the project.",
       "permissions": [
         { "action": "webfetch", "resource": "*", "effect": "allow" },
         { "action": "websearch", "resource": "*", "effect": "allow" }
@@ -58,7 +68,27 @@
       "models": {
         "kat-coder-v2.5-dev-colibri": {
           "modelID": "kat-coder-v2.5-dev-colibri",
-          "name": "KAT-Coder V2.5 Dev (local CPU)",
+          "name": "KAT-Coder V2.5 Dev (fast local CPU)",
+          "capabilities": {
+            "tools": true,
+            "input": ["text"],
+            "output": ["text"]
+          },
+          "limit": {
+            "context": 65536,
+            "output": 2048
+          },
+          "compatibility": {
+            "reasoningField": "reasoning_content"
+          },
+          "body": {
+            "enable_thinking": false,
+            "reasoning_effort": "none"
+          }
+        },
+        "kat-coder-v2.5-dev-colibri-deep": {
+          "modelID": "kat-coder-v2.5-dev-colibri",
+          "name": "KAT-Coder V2.5 Dev (deep thinking)",
           "capabilities": {
             "tools": true,
             "input": ["text"],

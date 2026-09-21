@@ -177,10 +177,23 @@ The configured model appears as
 `local-ai/kat-coder-v2.5-dev-colibri`. Use `/models` in OpenCode if you need to
 select it manually.
 
-The default model profile uses thinking mode with `high` reasoning effort.
-OpenCode reads the model's streamed reasoning from `reasoning_content`. Use the
-`--thinking` flag with `opencode run` when you want those thinking blocks printed
-in terminal output.
+The default `build` and `research` agents use a fast profile with thinking off
+and a 2,048-token response ceiling. They answer explanation and teaching
+requests in chat and do not create files unless the user explicitly asks for
+file changes. This avoids turning a broad question into a long generated
+document.
+
+Switch to the primary `deep` agent for difficult debugging, architecture, or
+multi-step implementation work that benefits from thinking mode. The deep
+profile keeps the 8,192-token ceiling. In the terminal, use:
+
+```sh
+opencode run --agent deep "diagnose this difficult issue"
+```
+
+KAT-Coder supports thinking on or off, but its Qwen3.6 template does not have a
+reliable graded high, medium, or low thinking budget. Deep mode can therefore
+take several minutes on CPU if the model reasons at length.
 
 Automatic AI-generated session titles are disabled because they otherwise launch
 a second model request beside the first coding turn. Sessions keep OpenCode's
@@ -189,6 +202,8 @@ default timestamp title, leaving the single inference slot available for work.
 The build agent uses a compact system prompt suited to the local CPU model. It
 keeps the normal inspect, edit, verify, safety, and task-completion rules without
 making every new session prefill OpenCode's much larger generic coding prompt.
+For broad learning requests it starts with a concise overview and offers to
+expand one topic instead of generating a complete course.
 
 The default `build` agent omits web tool schemas for lower latency. Switch to
 the primary `research` agent in OpenCode when you need web search or page
