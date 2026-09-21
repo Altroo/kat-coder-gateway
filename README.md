@@ -176,6 +176,15 @@ The configured model appears as
 `local-ai/kat-coder-v2.5-dev-colibri`. Use `/models` in OpenCode if you need to
 select it manually.
 
+The default model profile uses thinking mode with `high` reasoning effort.
+OpenCode reads the model's streamed reasoning from `reasoning_content`. Use the
+`--thinking` flag with `opencode run` when you want those thinking blocks printed
+in terminal output.
+
+Automatic AI-generated session titles are disabled because they otherwise launch
+a second model request beside the first coding turn. Sessions keep OpenCode's
+default timestamp title, leaving the single inference slot available for work.
+
 The example configuration keeps the core file, search, shell, edit, write, and
 question tools. It disables optional browser, web, skill, subagent, and code
 mode tools to reduce cold prompt processing on CPU. Remove a `false` entry from

@@ -1,6 +1,11 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "model": "local-ai/kat-coder-v2.5-dev-colibri",
+  "agents": {
+    "title": {
+      "disabled": true
+    }
+  },
   "tools": {
     "browser": false,
     "execute": false,
@@ -25,7 +30,8 @@
       "env": ["KAT_GATEWAY_API_KEY"],
       "package": "@opencode/ai/providers/openai-compatible",
       "settings": {
-        "baseURL": "{env:KAT_GATEWAY_BASE_URL}"
+        "baseURL": "{env:KAT_GATEWAY_BASE_URL}",
+        "apiKey": "{env:KAT_GATEWAY_API_KEY}"
       },
       "models": {
         "kat-coder-v2.5-dev-colibri": {
@@ -40,8 +46,12 @@
             "context": 32768,
             "output": 8192
           },
+          "compatibility": {
+            "reasoningField": "reasoning_content"
+          },
           "body": {
-            "enable_thinking": false
+            "enable_thinking": true,
+            "reasoning_effort": "high"
           }
         }
       }
