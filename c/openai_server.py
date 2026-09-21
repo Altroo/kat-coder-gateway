@@ -12,6 +12,7 @@ import mimetypes
 import os
 import select
 import queue
+import re
 import signal
 import socket
 import subprocess
@@ -2349,14 +2350,29 @@ def starts_in_reasoning(enable_thinking):
     return enable_thinking or ARCH == "glm53"
 
 
+def split_qwen36_unclosed_reply(text):
+    """Recover KAT's visible answer when it omits ``</think>``."""
+    match = re.search(r"\n{3,}", text)
+    if match is None:
+        return "", text.strip()
+    reasoning = text[:match.start()].strip()
+    answer = text[match.end():].strip()
+    if not answer:
+        return "", text.strip()
+    return reasoning, answer
+
+
 class ThinkingStreamSplit:
     """Split GLM's reasoning marker without leaking markers across stream chunks."""
     MARKERS = (THINK_OPEN, THINK_CLOSE)
 
-    def __init__(self, on_thinking, on_text, on_thinking_end=None, initial_thinking=True):
+    def __init__(self, on_thinking, on_text, on_thinking_end=None, initial_thinking=True,
+                 unclosed_splitter=None):
         self.on_thinking = on_thinking
         self.on_text = on_text
         self.on_thinking_end = on_thinking_end
+        self.unclosed_splitter = unclosed_splitter
+        self.deferred_thinking = []
         # #597: GLM emits reasoning only when the prompt opened <think> (thinking on);
         # with thinking off the prompt already closed it, so output is pure answer and
         # the splitter must start in text mode or it would file the whole answer as reasoning.
@@ -2365,7 +2381,15 @@ class ThinkingStreamSplit:
 
     def _emit(self, text):
         if text:
-            (self.on_thinking if self.thinking else self.on_text)(text)
+            if self.thinking and self.unclosed_splitter is not None:
+                self.deferred_thinking.append(text)
+            else:
+                (self.on_thinking if self.thinking else self.on_text)(text)
+
+    def _flush_closed_thinking(self):
+        if self.deferred_thinking:
+            self.on_thinking("".join(self.deferred_thinking))
+            self.deferred_thinking.clear()
 
     def feed(self, chunk):
         self.buf += chunk
@@ -2377,6 +2401,7 @@ class ThinkingStreamSplit:
                 self._emit(self.buf[:offset])
                 self.buf = self.buf[offset + len(marker):]
                 if marker == THINK_CLOSE and self.thinking:
+                    self._flush_closed_thinking()
                     self.thinking = False
                     if self.on_thinking_end:
                         self.on_thinking_end()
@@ -2395,14 +2420,24 @@ class ThinkingStreamSplit:
     def finish(self):
         self._emit(self.buf)
         self.buf = ""
+        if self.thinking and self.unclosed_splitter is not None:
+            reasoning, answer = self.unclosed_splitter("".join(self.deferred_thinking))
+            self.deferred_thinking.clear()
+            if reasoning:
+                self.on_thinking(reasoning)
+            if answer:
+                self.on_text(answer)
+            self.thinking = False
 
     close = finish        # interface parity with InklingStreamSplit in the streaming path
 
 
-def split_thinking_reply(text, enable_thinking=True):
+def split_thinking_reply(text, enable_thinking=True, unclosed_splitter=None):
     """Return the marker-free (thinking, answer) portions of one GLM reply."""
     thinking, answer = [], []
-    split = ThinkingStreamSplit(thinking.append, answer.append, initial_thinking=starts_in_reasoning(enable_thinking))
+    split = ThinkingStreamSplit(thinking.append, answer.append,
+                                initial_thinking=starts_in_reasoning(enable_thinking),
+                                unclosed_splitter=unclosed_splitter)
     split.feed(text)
     split.finish()
     return "".join(thinking), "".join(answer)
@@ -4352,7 +4387,10 @@ class APIHandler(BaseHTTPRequestHandler):
                     # #597 item 4: GLM emits reasoning then </think> then the answer. Route the
                     # reasoning to reasoning_content instead of dumping it (or the raw </think>)
                     # into the visible answer / tool-call parser.
-                    reasoning, text = split_thinking_reply(text, enable_thinking)
+                    reasoning, text = split_thinking_reply(
+                        text, enable_thinking,
+                        split_qwen36_unclosed_reply
+                        if ARCH == "qwen36" and enable_thinking else None)
                 length_finish = "length" if stats["length_limited"] else "stop"
                 if chat and tools:
                     content, calls = parse_arch_tool_calls(text, tools, sideband.reply())
@@ -4506,8 +4544,11 @@ class APIHandler(BaseHTTPRequestHandler):
                         sp["buf"] = sp["buf"][flush:]
                 # #597: keep GLM reasoning out of the tool-call buffer — a think splitter sends it
                 # to reasoning_content and passes only the answer text on to feed_content/parser.
-                think = (ThinkingStreamSplit(emit_reasoning, feed_content,
-                                             initial_thinking=starts_in_reasoning(enable_thinking))
+                think = (ThinkingStreamSplit(
+                             emit_reasoning, feed_content,
+                             initial_thinking=starts_in_reasoning(enable_thinking),
+                             unclosed_splitter=(split_qwen36_unclosed_reply
+                                 if ARCH == "qwen36" and enable_thinking else None))
                          if glm_think else None)
                 def emit_tools(chunk):
                     if dbg_echo:
@@ -4542,8 +4583,11 @@ class APIHandler(BaseHTTPRequestHandler):
                 if splitter is not None:                   # inkling content/marker splitter
                     content_split = splitter
                 elif glm_think:                            # GLM <think> reasoning → reasoning_content
-                    content_split = ThinkingStreamSplit(emit_reasoning, emit,
-                                                        initial_thinking=starts_in_reasoning(enable_thinking))
+                    content_split = ThinkingStreamSplit(
+                        emit_reasoning, emit,
+                        initial_thinking=starts_in_reasoning(enable_thinking),
+                        unclosed_splitter=(split_qwen36_unclosed_reply
+                            if ARCH == "qwen36" and enable_thinking else None))
                 else:
                     content_split = None
                 def emit_plain(chunk):

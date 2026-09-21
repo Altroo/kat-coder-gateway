@@ -25,7 +25,7 @@ from openai_server import (APIError, APIHandler, APIServer, ClientCancelled,
                            read_engine_turn, render_chat, render_chat_kimi, render_chat_olmoe,
                            render_chat_qwen,
                            render_chat_qwen38, render_chat_v4, _dsv4_tool_calls, serve,
-                           split_thinking_reply,
+                           split_qwen36_unclosed_reply, split_thinking_reply,
                            stop_policy, tune_child_env)
 
 
@@ -1519,6 +1519,31 @@ class HTTPTest(unittest.TestCase):
                 response.read()
         self.assertFalse(self.engine.calls[-1][6])
 
+    def test_qwen36_unclosed_thinking_still_streams_visible_content(self):
+        tool = {"type": "function", "function": {
+            "name": "read", "description": "Read a file",
+            "parameters": {"type": "object", "properties": {}}}}
+        for tools in (None, [tool]):
+            with self.subTest(tools=bool(tools)), patch("openai_server.ARCH", "qwen36"):
+                body = {
+                    "model": "test-model",
+                    "messages": [{"role": "user", "content": "Hi"}],
+                    "stream": True,
+                    "enable_thinking": True,
+                }
+                if tools:
+                    body["tools"] = tools
+                with self.request("/v1/chat/completions", body) as response:
+                    raw = response.read().decode()
+            payloads = [json.loads(line[6:]) for line in raw.splitlines()
+                        if line.startswith("data: ") and line != "data: [DONE]"]
+            content = "".join((choice.get("delta") or {}).get("content", "")
+                              for payload in payloads for choice in payload["choices"])
+            reasoning = "".join((choice.get("delta") or {}).get("reasoning_content", "")
+                                for payload in payloads for choice in payload["choices"])
+            self.assertEqual(content, "Héllo")
+            self.assertEqual(reasoning, "")
+
     def test_kimi_chat_completion_uses_multiturn_wire_payload(self):
         with patch("openai_server.ARCH", "kimi"):
             with self.request("/v1/chat/completions", {
@@ -2319,6 +2344,31 @@ class ThinkingSplitUnitTest(unittest.TestCase):
     def test_missing_close_tag_surfaces_reasoning(self):
         self.assertEqual(split_thinking_reply("thought with no end"),
                          ("thought with no end", ""))
+
+    def test_qwen36_missing_close_recovers_the_visible_answer(self):
+        raw = "The user said hello.\n\n\nHello! How can I help?\n\n"
+        self.assertEqual(split_qwen36_unclosed_reply(raw),
+                         ("The user said hello.", "Hello! How can I help?"))
+        self.assertEqual(split_qwen36_unclosed_reply("Hello!"), ("", "Hello!"))
+
+    def test_qwen36_stream_recovers_an_unclosed_answer(self):
+        thinking, answer = [], []
+        split = ThinkingStreamSplit(thinking.append, answer.append,
+                                    unclosed_splitter=split_qwen36_unclosed_reply)
+        split.feed("The user said hello.\n\n")
+        split.feed("\nHello!")
+        split.finish()
+        self.assertEqual(("".join(thinking), "".join(answer)),
+                         ("The user said hello.", "Hello!"))
+
+    def test_qwen36_closed_stream_keeps_the_normal_split(self):
+        thinking, answer = [], []
+        split = ThinkingStreamSplit(thinking.append, answer.append,
+                                    unclosed_splitter=split_qwen36_unclosed_reply)
+        split.feed("reasoning</think>visible")
+        split.finish()
+        self.assertEqual(("".join(thinking), "".join(answer)),
+                         ("reasoning", "visible"))
 
 
 class _ChunkEngine(FakeEngine):
