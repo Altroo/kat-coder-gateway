@@ -42,6 +42,44 @@ class Qwen36PrefixServeTest(PrefixReuseContract, unittest.TestCase):
                            {"SNAP": str(FIXTURE), "SERVE": "1", "COLI_DENSE_I8": "0"},
                            log_prefix=log_prefix, reuse=reuse)
 
+    def test_cancel_during_prefill_precedes_generated_data(self):
+        engine = ServeEngine(
+            ENGINE,
+            ["8", "8"],
+            {"SNAP": str(FIXTURE), "SERVE": "1", "COLI_DENSE_I8": "0",
+             "QWEN36_SERVE_PREFILL_CHUNK": "1"},
+            log_prefix=False,
+        )
+        prompt = b"x" * 400
+        engine.p.stdin.write(
+            f"SUBMIT cancel-prefill 0 {len(prompt)} 4 0 1\n".encode()
+            + prompt + b"\n"
+        )
+        engine.p.stdin.flush()
+
+        while True:
+            line = engine.p.stdout.readline()
+            self.assertTrue(line, "engine exited before accepting cancellation test")
+            accepted = line.decode("latin-1").strip()
+            if accepted.startswith("ACCEPT cancel-prefill "):
+                break
+        engine.p.stdin.write(b"CANCEL cancel-prefill\n")
+        engine.p.stdin.flush()
+
+        while True:
+            line = engine.p.stdout.readline()
+            self.assertTrue(line, "engine exited before acknowledging cancellation")
+            text = line.decode("latin-1").strip()
+            if text.startswith("DATA cancel-prefill "):
+                self.fail("engine generated data before honoring a prefill cancellation")
+            if text.startswith("ERROR cancel-prefill "):
+                self.assertEqual(text, "ERROR cancel-prefill CANCELLED")
+                break
+
+        # Cancellation must not poison the persistent process or its next turn.
+        engine.ask("after-cancel", b"still responsive", max_tok=1)
+        engine.close()
+
 
 if __name__ == "__main__":
     unittest.main()

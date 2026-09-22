@@ -2443,7 +2443,8 @@ static int   g_echo_k  = 0;      /* 0 = spento */
 static const char *g_echo_id = NULL;
 static void serve_echo(const char *id, int pos, int token, const float *lo, int V, int k);
 
-static float *step(Model *m, const int *ids, int S, int pos_base) {
+static float *step(Model *m, const int *ids, int S, int pos_base,
+                   int finish_prefill) {
     Cfg *c = &m->c; int D = c->hidden;
     if (m->resident_mode && m->first_step) m->resident_collecting = 1;
     /* Per-layer residual dump (last token) for torch-free cosine debugging.
@@ -2476,6 +2477,15 @@ static float *step(Model *m, const int *ids, int S, int pos_base) {
     m->token_count += S; m->freq_token_count += S;
     if (!m->hot_pinned && m->hot_n > 0 && m->freq_token_count >= m->warmup_tokens) pin_hot_experts(m);
     m->kv_len = pos_base + S;
+    /* Serve mode can split a long prompt across several calls so CANCEL is
+     * observed during prefill.  Intermediate chunks have already advanced all
+     * model state, but do not need an expensive vocabulary projection yet.
+     * Keep first_step/resident collection open until the final chunk. */
+    if (!finish_prefill) {
+        free(x);
+        if (lf) fclose(lf);
+        return NULL;
+    }
     /* Lettura del prefill: una passata di lm_head per posizione, pagata SOLO
      * dalle richieste che hanno chiesto il canale. La posizione p predice il
      * token p+1, quindi si copre l'intero blocco fresco tranne il suo primo
@@ -2820,7 +2830,7 @@ static void generate(Model *m, const int *prompt, int np, int n_new, int *out) {
     ensure_kv(m);
     m->kv_len = 0;
     for (int i = 0; i < np; i++) out[i] = prompt[i];
-    float *logit = step(m, prompt, np, 0);
+    float *logit = step(m, prompt, np, 0, 1);
     int len = np;
     for (int s = 0; s < n_new; s++) {
         int best = 0; float bv = logit[0];
@@ -2837,7 +2847,7 @@ static void generate(Model *m, const int *prompt, int np, int n_new, int *out) {
         free(logit); out[len++] = best;
         int one = best;
         { extern double g_tm_step; double _s0 = tm_now();
-          logit = step(m, &one, 1, len - 1);
+          logit = step(m, &one, 1, len - 1, 1);
           if (tm_on()) g_tm_step += tm_now()-_s0; }
     }
 }
@@ -2854,7 +2864,7 @@ static int tf_nll(Model *m, const int *full, int nfull, int np, double *nll_out)
     ensure_kv(m);
     m->kv_len = 0;
     double nll = 0; int scored = 0;
-    float *logit = step(m, full, np, 0);
+    float *logit = step(m, full, np, 0, 1);
     for (int i = np; i < nfull; i++) {
         float mx = logit[0]; for (int v = 1; v < c->vocab; v++) if (logit[v] > mx) mx = logit[v];
         double Z = 0; for (int v = 0; v < c->vocab; v++) Z += exp((double)logit[v] - mx);
@@ -2862,7 +2872,7 @@ static int tf_nll(Model *m, const int *full, int nfull, int np, double *nll_out)
         scored++;
         free(logit); logit = NULL;
         if (i == nfull - 1) break;
-        logit = step(m, &full[i], 1, i);
+        logit = step(m, &full[i], 1, i, 1);
     }
     if (logit) free(logit);
     *nll_out = nll / scored;
@@ -3058,6 +3068,18 @@ static int serve_cancel_pending(const char *id){
     return cancelled;
 }
 
+/* A long CPU prompt used to be one uninterruptible step(): the gateway sent
+ * CANCEL as soon as its client disappeared, but this process did not read the
+ * command until prefill had finished.  Bound the serve-only prefill work so
+ * every chunk is also a cancellation point.  The operator knob is mainly for
+ * regression tests and slow hardware; zero disables chunking. */
+static int serve_prefill_chunk_rows(int rows){
+    const char *value = getenv("QWEN36_SERVE_PREFILL_CHUNK");
+    int chunk = value ? atoi(value) : 128;
+    if(chunk <= 0 || chunk > rows) return rows;
+    return chunk;
+}
+
 /* --- Dashboard: Brain e Profile ------------------------------------------
  * Stesse quattro righe di colibri.c/glm53.c, stessi byte: EMAP dopo READY,
  * HITS e PROF prima di DONE. Qui ogni layer e' MoE, quindi la griglia e'
@@ -3151,7 +3173,32 @@ static void serve_one(Model *m, ServeReq *q){
                (size_t)m->c.n_layers * m->c.n_experts * sizeof(float));
     /* `reuse` is the ABSOLUTE position of the first fresh token: attention and
      * the KV rows are position-indexed, so this has to be the real offset. */
-    float *lo = step(m, ids + reuse, np - reuse, reuse);
+    int fresh = np - reuse;
+    int chunk = (q->logprobs > 0 || getenv("DUMP_LAYERS"))
+              ? fresh : serve_prefill_chunk_rows(fresh);
+    int fed = 0, prefill_cancelled = 0;
+    float *lo = NULL;
+    while(fed < fresh){
+        /* Check before the first chunk too: CANCEL may already be buffered by
+         * the time tokenization and cache preparation finish. */
+        if(serve_cancel_pending(q->id)){ prefill_cancelled = 1; break; }
+        int rows = fresh - fed;
+        if(rows > chunk) rows = chunk;
+        int final_chunk = fed + rows == fresh;
+        lo = step(m, ids + reuse + fed, rows, reuse + fed, final_chunk);
+        fed += rows;
+    }
+    /* A disconnect during the final chunk must be honored before the first
+     * DATA frame; otherwise a closed client still receives one token before
+     * the engine notices the queued CANCEL. */
+    if(!prefill_cancelled && serve_cancel_pending(q->id)) prefill_cancelled = 1;
+    if(prefill_cancelled){
+        free(lo);
+        g_echo_k = 0; g_echo_id = NULL;
+        printf("ERROR %s CANCELLED\n",q->id); fflush(stdout);
+        free(ids);
+        return;
+    }
     if (q->pin) pin_save(m, ids, np, lo);
     int gen=0, limited=1, forwards=1;   /* il prefill e' il primo forward */
     const double s_disk=m->t_disk, s_attn=tm_sum(0)+tm_sum(1), s_moe=tm_sum(2), s_head=tm_sum(5);
@@ -3189,7 +3236,7 @@ static void serve_one(Model *m, ServeReq *q){
          * serve_one() resets the recurrent/KV state for every request, so
          * stepping here would only run a full discarded decode pass. */
         if(s == q->max_tok - 1) break;
-        lo = step(m, &tk, 1, np+s); forwards++;
+        lo = step(m, &tk, 1, np+s, 1); forwards++;
     }
     if(sbn>0) serve_data(q->id,(char*)sbuf,sbn);   /* flush trailing partial UTF-8 */
     free(lo); free(ids);
