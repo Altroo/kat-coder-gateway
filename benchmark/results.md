@@ -59,3 +59,7 @@ The repaired deployment passed the explicit-stop reproduction, a Redux `provides
 Validation: portable suite 2,360 tests with 296 skipped; Linux gateway suite 436 tests with one skipped; nine real-engine control tests; tiny-model oracle matched all 16 reference tokens. See [validation.json](runs/2026-10-07/validation.json).
 
 Final state: KAT restored, gateway healthy, temporary candidate container removed. Qwen remains a previously rejected model; its retest artifacts are retained for transparency. None of the candidate weights was promoted into the permanent production model directory. PR work remains deferred.
+
+### Storage cleanup — 2026-10-07
+
+At the user's request, the Tiel, MiMo, and Qwen3.8 GGUF downloads were deleted after testing, reclaiming 49.45 GB (46.05 GiB). KAT remains in `/var/www/colibri-models/KAT-Coder-V2.5-Dev-colibri-i4-gs64` and the gateway passed its health check. Benchmark scripts, manifests, generated answers, and results were retained. Candidate weights would need to be downloaded and verified again before a rerun. See [cleanup.json](runs/2026-10-07/cleanup.json).

@@ -1,0 +1,26 @@
+{
+  "timestamp_utc": "2026-10-07T17:14:05.575739+00:00",
+  "reason": "User requested deletion of tested candidate weights; retain KAT and benchmark evidence",
+  "deleted": [
+    {
+      "file": "Tiel-Coder-35B-A3B-UD-Q4_K_XL.gguf",
+      "bytes": 22360478080
+    },
+    {
+      "file": "MiMo-V2.6-Distill-Qwen-9B-Q8_0.gguf",
+      "bytes": 9527498048
+    },
+    {
+      "file": "Qwen3.8-27B-UD-Q4_K_XL.gguf",
+      "bytes": 17559178144
+    }
+  ],
+  "deleted_bytes": 49447154272,
+  "free_bytes_before": 86519431168,
+  "free_bytes_after": 135966928896,
+  "kat_model_retained": true,
+  "gateway_health": {
+    "status": "ok"
+  },
+  "remaining_benchmark_gguf_files": []
+}
