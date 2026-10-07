@@ -1,0 +1,81 @@
+{
+  "llama_image": "ghcr.io/ggml-org/llama.cpp@sha256:33868c035b21dc63f7c60b7438774283fd99215bc319114eb03de5df4ce7cd6b",
+  "cpu": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           48 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  16\nOn-line CPU(s) list:                     0-15\nVendor ID:                               AuthenticAMD\nBIOS Vendor ID:                          Advanced Micro Devices, Inc.\nModel name:                              AMD Ryzen 7 7700 8-Core Processor\nBIOS Model name:                         AMD Ryzen 7 7700 8-Core Processor               Unknown CPU @ 3.8GHz\nBIOS CPU family:                         107\nCPU family:                              25\nModel:                                   97\nThread(s) per core:                      2\nCore(s) per socket:                      8\nSocket(s):                               1\nStepping:                                2\nCPU(s) scaling MHz:                      46%\nCPU max MHz:                             5389.0000\nCPU min MHz:                             400.0000\nBogoMIPS:                                7585.41\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good amd_lbr_v2 nopl nonstop_tsc cpuid extd_apicid aperfmperf rapl pni pclmulqdq monitor ssse3 fma cx16 sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand lahf_lm cmp_legacy svm extapic cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw ibs skinit wdt tce topoext perfctr_core perfctr_nb bpext perfctr_llc mwaitx cpb cat_l3 cdp_l3 hw_pstate ssbd mba perfmon_v2 ibrs ibpb stibp ibrs_enhanced vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid cqm rdt_a avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves cqm_llc cqm_occup_llc cqm_mbm_total cqm_mbm_local user_shstk avx512_bf16 clzero irperf xsaveerptr rdpru wbnoinvd cppc amd_ibpb_ret arat npt lbrv svm_lock nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold avic vgif x2avic v_spec_ctrl vnmi avx512vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid overflow_recov succor smca fsrm flush_l1d ibpb_exit_to_user\nVirtualization:                          AMD-V\nL1d cache:                               256 KiB (8 instances)\nL1i cache:                               256 KiB (8 instances)\nL2 cache:                                8 MiB (8 instances)\nL3 cache:                                32 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-15\nVulnerability Gather data sampling:      Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Mitigation; Safe RET\nVulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; STIBP always-on; PBRSB-eIBRS Not affected; BHI Not affected\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Vulnerable: Clear CPU buffers attempted, no microcode\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Mitigation; IBPB before exit to userspace\n",
+  "kernel": "6.8.0-117-generic",
+  "runs": [
+    {
+      "label": "kat",
+      "exit_code": 0,
+      "seconds": 188.4437774773687,
+      "peak_process_rss_mib": 21832.5,
+      "warmup": {
+        "usage": {
+          "prompt_tokens": 16,
+          "completion_tokens": 2,
+          "total_tokens": 18
+        },
+        "seconds": 0.3215537965297699,
+        "ttft_seconds": 0.21332466788589954,
+        "finish_reason": "stop"
+      }
+    },
+    {
+      "label": "tiel",
+      "exit_code": 0,
+      "seconds": 134.50891682319343,
+      "peak_process_rss_mib": 32697.9,
+      "warmup": {
+        "usage": {
+          "completion_tokens": 2,
+          "prompt_tokens": 194,
+          "total_tokens": 196,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "seconds": 1.8856634050607681,
+        "ttft_seconds": 1.8223135974258184,
+        "finish_reason": "stop"
+      }
+    },
+    {
+      "label": "mimo",
+      "exit_code": 0,
+      "seconds": 279.7220921255648,
+      "peak_process_rss_mib": 10484.8,
+      "warmup": {
+        "usage": {
+          "completion_tokens": 2,
+          "prompt_tokens": 13,
+          "total_tokens": 15,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "seconds": 0.6200949158519506,
+        "ttft_seconds": 0.4588051550090313,
+        "finish_reason": "stop"
+      }
+    },
+    {
+      "label": "qwen",
+      "exit_code": 0,
+      "seconds": 605.3022464625537,
+      "peak_process_rss_mib": 22886.5,
+      "warmup": {
+        "usage": {
+          "completion_tokens": 2,
+          "prompt_tokens": 16,
+          "total_tokens": 18,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "seconds": 1.4822928439825773,
+        "ttft_seconds": 1.1320176310837269,
+        "finish_reason": "stop"
+      }
+    }
+  ],
+  "method": "One greedy pass of 3 coding contracts (10 assertions each) plus a two-turn tool loop. Thinking disabled, max_tokens=1024, 8 CPU threads. Runtime/model stack comparison, quantizations differ. Candidate ctx=8192, production KAT ctx=65536; all actual prompts fit both."
+}

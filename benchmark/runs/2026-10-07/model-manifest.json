@@ -1,0 +1,49 @@
+{
+  "protocol": "2026-10-07.v1",
+  "candidates": [
+    {
+      "repo": "peculiar-ragdoll/Tiel-Coder-35B-A3B-GGUF",
+      "revision": "a1ae34c609d9ef03827f373a215795f22545334c",
+      "file": "Tiel-Coder-35B-A3B-UD-Q4_K_XL.gguf",
+      "sha256": "9779b32f998371c66ae5e1aa9a0bc7ad946b1a36c61ea6a8eb39d523b4b19033",
+      "size_bytes": 22360478080,
+      "source": "https://huggingface.co/peculiar-ragdoll/Tiel-Coder-35B-A3B-GGUF/tree/a1ae34c609d9ef03827f373a215795f22545334c"
+    },
+    {
+      "repo": "ggml-org/MiMo-V2.6-Distill-Qwen-9B-GGUF",
+      "revision": "81baddc39bc48924a88e87b8d31aceb03058e559",
+      "file": "MiMo-V2.6-Distill-Qwen-9B-Q8_0.gguf",
+      "sha256": "de6dae10334e088876358ef9f574835bb3b401ea2ecf5d6a9473f37894df6b73",
+      "size_bytes": 9527498048,
+      "source": "https://huggingface.co/ggml-org/MiMo-V2.6-Distill-Qwen-9B-GGUF/tree/81baddc39bc48924a88e87b8d31aceb03058e559"
+    },
+    {
+      "repo": "unsloth/Qwen3.8-27B-GGUF",
+      "revision": "4ca720788d1e01f1bff70c033e0d0028fd02e502",
+      "file": "Qwen3.8-27B-UD-Q4_K_XL.gguf",
+      "sha256": "3f227079003add2511437e5b1e94812e363385225bf6a9b47b0054a72bc8b01e",
+      "size_bytes": 17559178144,
+      "source": "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/tree/4ca720788d1e01f1bff70c033e0d0028fd02e502"
+    }
+  ],
+  "runtimes": {
+    "colibri_commit": "f2e1fc04",
+    "colibri_version": "2.0.0",
+    "opencode_version": "2.0.24",
+    "llama_cpp_image": "ghcr.io/ggml-org/llama.cpp@sha256:33868c035b21dc63f7c60b7438774283fd99215bc319114eb03de5df4ce7cd6b",
+    "python_test_image": "python@sha256:bf44cdfcb76cd3b41e879bc058fc37ec5872002ccfde7fcb765e218cde0cd79c",
+    "node_test_image": "node@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392"
+  },
+  "kat": {
+    "container": "KAT-Coder-V2.5-Dev-colibri-i4-gs64",
+    "quantization": "int4 gs64",
+    "metadata_sha256": {
+      "config.json": "170a5e27b32faec4da58d2f983961d0f2791533f0815d5020dc4f4095879f52b",
+      "qwen36_meta.json": "cb2d7d4054865c7d2d6f6da3c902b51d9942e5f19b53e646b23909cdd4ce0fc4",
+      "tokenizer.json": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42"
+    },
+    "cached_download_revision": "f2ccba2bf8aaf8d86fe2f5091def4ba69f5914d1",
+    "weights_identity_note": "Existing deployed container. Metadata hashes recorded; full weight shards were not rehashed during timed inference."
+  },
+  "task_contracts_sha256": "5175c6f61a5001a71eae0d395cc4b31304babd63aeb730d3b2b49407da72b039"
+}

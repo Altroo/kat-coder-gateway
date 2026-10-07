@@ -1,0 +1,75 @@
+{
+  "deployment_commit": "f2e1fc04",
+  "opencode_version": "2.0.24",
+  "colibri_version": "2.0.0",
+  "portable_check": {
+    "tests": 2360,
+    "skipped": 296,
+    "passed": true
+  },
+  "linux_gateway_tests": {
+    "tests": 436,
+    "skipped": 1,
+    "passed": true
+  },
+  "real_engine_tests": {
+    "tests": 9,
+    "passed": true
+  },
+  "tiny_model_oracle": {
+    "matching_tokens": 16,
+    "reference_tokens": 16
+  },
+  "stream_checks": [
+    {
+      "label": "explicit-stop",
+      "seconds": 5.37,
+      "finish_reason": [
+        "stop"
+      ],
+      "done": true,
+      "characters": 6,
+      "usage": {
+        "prompt_tokens": 23,
+        "completion_tokens": 4,
+        "total_tokens": 27
+      }
+    },
+    {
+      "label": "redux-explanation",
+      "seconds": 60.72,
+      "finish_reason": [
+        "stop"
+      ],
+      "done": true,
+      "characters": 3244,
+      "usage": {
+        "prompt_tokens": 32,
+        "completion_tokens": 914,
+        "total_tokens": 946
+      }
+    }
+  ],
+  "opencode_cli_check": {
+    "exit_code": 0,
+    "text_responses": 1,
+    "error_events": 0
+  },
+  "benchmark_harness_reference_tests": {
+    "test_cases": 30,
+    "passed": true
+  },
+  "final_state": {
+    "kat_service": "active",
+    "gateway_health": {
+      "status": "ok"
+    },
+    "release_path": "/var/www/kat-coder-gateway-releases/f2e1fc04",
+    "temporary_candidate_container_present": false,
+    "available_disk_gib": 81
+  },
+  "benchmark_timeout_cleanup": {
+    "timeout_detected": true,
+    "test_container_cleaned": true
+  }
+}

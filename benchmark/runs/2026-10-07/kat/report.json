@@ -1,0 +1,155 @@
+{
+  "label": "kat",
+  "model": "kat-coder-v2.5-dev-colibri",
+  "url": "http://127.0.0.1:18080",
+  "started": "2026-10-07T16:39:24Z",
+  "settings": {
+    "model": "kat-coder-v2.5-dev-colibri",
+    "temperature": 0,
+    "top_p": 1,
+    "enable_thinking": false,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    },
+    "max_tokens": 1024
+  },
+  "tasks": [
+    {
+      "content": "```python\ndef order_tasks(tasks):\n    \"\"\"\n    Return task ids in dependency-first topological order.\n    At every step, choose the ready task that appeared earliest in the original input.\n    \"\"\"\n    if not tasks:\n        return []\n    \n    # Build mapping from id to task, checking for duplicates and self-dependencies\n    id_to_task = {}\n    id_order = []  # preserve original order\n    seen_ids = set()\n    \n    for task in tasks:\n        tid = task[\"id\"]\n        if tid in seen_ids:\n            raise ValueError(f\"Duplicate task id: {tid}\")\n        seen_ids.add(tid)\n        id_to_task[tid] = task\n        id_order.append(tid)\n    \n    # Build adjacency and in-degree\n    # depends_on: list of ids this task depends on\n    # We need to track for each task, how many dependencies it has (in-degree)\n    # And for each task, which tasks depend on it (successors)\n    \n    in_degree = {tid: 0 for tid in id_order}\n    successors = {tid: set() for tid in id_order}\n    \n    for tid in id_order:\n        task = id_to_task[tid]\n        deps = task.get(\"depends_on\", [])\n        # Deduplicate dependencies\n        seen_deps = set()\n        for dep in deps:\n            if dep == tid:\n                raise ValueError(f\"Self dependency: {tid}\")\n            if dep not in id_to_task:\n                raise ValueError(f\"Unknown dependency: {dep}\")\n            if dep in seen_deps:\n                continue\n            seen_deps.add(dep)\n            in_degree[tid] += 1\n            successors[dep].add(tid)\n    \n    # Kahn's algorithm with priority: choose the ready task that appeared earliest\n    # We need a queue of ready tasks (in-degree 0), and at each step pick the one\n    # with the smallest original index.\n    \n    # Use a min-heap based on original index for ready tasks\n    import heapq\n    \n    # Initialize: all tasks with in-degree 0\n    ready = []\n    for idx, tid in enumerate(id_order):\n        if in_degree[tid] == 0:\n            heapq.heappush(ready, (idx, tid))\n    \n    result = []\n    while ready:\n        idx, tid = heapq.heappop(ready)\n        result.append(tid)\n        for succ in successors[tid]:\n            in_degree[succ] -= 1\n            if in_degree[succ] == 0:\n                # Find the original index of succ\n                heapq.heappush(ready, (id_order.index(succ), succ))\n    \n    if len(result) != len(id_order):\n        raise ValueError(\"Cycle detected\")\n    \n    return result\n```",
+      "reasoning": "",
+      "tool_calls": [],
+      "usage": {
+        "prompt_tokens": 162,
+        "completion_tokens": 610,
+        "total_tokens": 772
+      },
+      "seconds": 34.940896678715944,
+      "ttft_seconds": 1.8372704274952412,
+      "finish_reason": "stop",
+      "tests": {
+        "passed": true,
+        "returncode": 0,
+        "output": "..........\n----------------------------------------------------------------------\nRan 10 tests in 0.017s\n\nOK\n"
+      },
+      "id": "dependency_order",
+      "initial_test_result": {
+        "passed": true,
+        "returncode": 0,
+        "output": "..........\n----------------------------------------------------------------------\nRan 10 tests in 0.019s\n\nOK\n"
+      },
+      "test_harness": "2026-10-07.v1-completion-checked"
+    },
+    {
+      "content": "```python\nfrom decimal import Decimal, ROUND_HALF_UP, InvalidOperation\nimport math\n\ndef invoice_total(lines, discount_percent=\"0\"):\n    if not lines:\n        return {\"net\": \"0.00\", \"tax\": \"0.00\", \"total\": \"0.00\"}\n    \n    # Validate discount_percent\n    try:\n        discount = Decimal(discount_percent)\n    except (InvalidOperation, TypeError, ValueError):\n        raise ValueError(f\"Invalid discount_percent: {discount_percent}\")\n    \n    if not discount.is_finite():\n        raise ValueError(\"Discount percent must be finite\")\n    if discount < 0 or discount > 100:\n        raise ValueError(\"Discount percent must be between 0 and 100\")\n    \n    two_places = Decimal(\"0.01\")\n    \n    total_net = Decimal(\"0\")\n    total_tax = Decimal(\"0\")\n    \n    for line in lines:\n        # Check for missing fields\n        if \"quantity\" not in line or \"unit_price\" not in line or \"vat_percent\" not in line:\n            raise ValueError(\"Missing required fields\")\n        \n        # Parse values\n        try:\n            quantity = Decimal(line[\"quantity\"])\n            unit_price = Decimal(line[\"unit_price\"])\n            vat_percent = Decimal(line[\"vat_percent\"])\n        except (InvalidOperation, TypeError, ValueError):\n            raise ValueError(\"Invalid decimal value\")\n        \n        # Validate finiteness\n        if not quantity.is_finite() or not unit_price.is_finite() or not vat_percent.is_finite():\n            raise ValueError(\"Non-finite values not allowed\")\n        \n        # Reject negatives\n        if quantity < 0 or unit_price < 0 or vat_percent < 0:\n            raise ValueError(\"Negative values not allowed\")\n        \n        # Compute line net after discount\n        gross = quantity * unit_price\n        net = gross * (1 - discount / 100)\n        net = net.quantize(two_places, rounding=ROUND_HALF_UP)\n        \n        # Compute tax on rounded net\n        tax = net * vat_percent / 100\n        tax = tax.quantize(two_places, rounding=ROUND_HALF_UP)\n        \n        total_net += net\n        total_tax += tax\n    \n    total_net = total_net.quantize(two_places, rounding=ROUND_HALF_UP)\n    total_tax = total_tax.quantize(two_places, rounding=ROUND_HALF_UP)\n    total = (total_net + total_tax).quantize(two_places, rounding=ROUND_HALF_UP)\n    \n    return {\n        \"net\": str(total_net),\n        \"tax\": str(total_tax),\n        \"total\": str(total)\n    }\n```",
+      "reasoning": "",
+      "tool_calls": [],
+      "usage": {
+        "prompt_tokens": 237,
+        "completion_tokens": 586,
+        "total_tokens": 823
+      },
+      "seconds": 34.300499215722084,
+      "ttft_seconds": 2.713337618857622,
+      "finish_reason": "stop",
+      "tests": {
+        "passed": false,
+        "returncode": 1,
+        "output": "..F.......\n======================================================================\nFAIL: test_discount_bounds (__main__.Tests.test_discount_bounds)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/work/tests.py\", line 22, in test_discount_bounds\n    with self.assertRaises(ValueError): invoice_total([],bad)\n         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^\nAssertionError: ValueError not raised\n\n----------------------------------------------------------------------\nRan 10 tests in 0.001s\n\nFAILED (failures=1)\n"
+      },
+      "id": "invoice_decimal",
+      "initial_test_result": {
+        "passed": false,
+        "returncode": 1,
+        "output": "..F.......\n======================================================================\nFAIL: test_discount_bounds (__main__.Tests.test_discount_bounds)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/work/tests.py\", line 22, in test_discount_bounds\n    with self.assertRaises(ValueError): invoice_total([],bad)\n         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^\nAssertionError: ValueError not raised\n\n----------------------------------------------------------------------\nRan 10 tests in 0.001s\n\nFAILED (failures=1)\n"
+      },
+      "test_harness": "2026-10-07.v1-completion-checked"
+    },
+    {
+      "content": "```javascript\nfunction createAsyncCache(load, ttlMs, now = Date.now) {\n  const cache = new Map();\n  const pending = new Map();\n\n  function get(key) {\n    const cached = cache.get(key);\n    if (cached !== undefined) {\n      const expiresAt = cached.expiresAt;\n      const value = cached.value;\n      if (now() < expiresAt) {\n        return Promise.resolve(value);\n      }\n      cache.delete(key);\n    }\n\n    const pendingLoad = pending.get(key);\n    if (pendingLoad !== undefined) {\n      return pendingLoad;\n    }\n\n    const promise = (async () => {\n      try {\n        const value = await load(key);\n        const expiresAt = now() + ttlMs;\n        cache.set(key, { value, expiresAt });\n        pending.delete(key);\n        return value;\n      } catch (err) {\n        pending.delete(key);\n        throw err;\n      }\n    })();\n\n    pending.set(key, promise);\n    return promise;\n  }\n\n  function invalidate(key) {\n    cache.delete(key);\n    const pendingLoad = pending.get(key);\n    if (pendingLoad !== undefined) {\n      pending.delete(key);\n      // The old load must still settle for its original callers,\n      // but we've removed it from pending so it can't overwrite newer state.\n      // We need to wrap it so that when it settles, it doesn't affect cache.\n      // Actually, the original promise already has the cache.set inside it.\n      // We need to intercept that. Let's restructure.\n    }\n  }\n\n  // Restructure to handle the detach requirement properly\n  const cache2 = new Map();\n  const pending2 = new Map();\n\n  function get2(key) {\n    const cached = cache2.get(key);\n    if (cached !== undefined) {\n      const expiresAt = cached.expiresAt;\n      const value = cached.value;\n      if (now() < expiresAt) {\n        return Promise.resolve(value);\n      }\n      cache2.delete(key);\n    }\n\n    const pendingLoad = pending2.get(key);\n    if (pendingLoad !== undefined) {\n      return pendingLoad;\n    }\n\n    let resolveCache;\n    let rejectCache;\n    const promise = new Promise((resolve, reject) => {\n      resolveCache = resolve;\n      rejectCache = reject;\n    });\n\n    pending2.set(key, { promise, resolveCache, rejectCache });\n\n    let settled = false;\n    let detach = false;\n\n    const cleanup = () => {\n      if (!settled) {\n        settled = true;\n        pending2.delete(key);\n      }\n    };\n\n    const runLoad = async () => {\n      try {\n        const value = await load(key);\n        if (!settled) {\n          settled = true;\n          if (!detach) {\n            const expiresAt = now() + ttlMs;\n            cache2.set(key, { value, expiresAt });\n            resolveCache(value);\n          } else {\n            // detached: old load settled, don't overwrite newer cache state\n            // but still resolve original callers\n            resolveCache(value);\n          }\n        }\n      } catch (err) {\n        if (!settled) {\n          settled = true;\n          if (!detach) {\n            cache2.delete(key);\n          }\n          rejectCache(err);\n        }\n      }\n    };\n\n    // Start the load\n    runLoad();\n\n    // Return a promise that resolves/rejects based on the load\n    // But we need to handle the case where invalidate is called\n    return promise;\n  }\n\n  function invalidate2(key) {\n    cache2.delete(key);\n    const pendingEntry = pending2.get(key);\n    if (pendingEntry !== undefined) {\n      // Mark as detached so the old load won't overwrite newer cache state\n      // But we need to let the old load settle for its original callers\n      // The original promise is already created and returned to callers.\n      // We need to signal to the running load that it's detached.\n      // Let's add a detach flag to the pending entry.\n      pendingEntry.detach = true;\n      // Remove from pending so next get starts fresh\n      pending2.delete(key);\n    }\n  }\n\n  // Hmm, the above approach with resolveCache/rejectCache is getting complex.\n  // Let me think about this more carefully.\n\n  // The key insight: when invalidate is called, we need to:\n  // 1. Remove from cache\n  // 2. Detach any pending load so it can't overwrite newer state\n  // 3. But the old load must still settle for its original callers\n\n  // So the structure should be:\n  // - pending stores the load promise and a flag for whether it's still \"active\"\n  // - When the load settles, if it's still active, update cache and resolve/reject callers\n  // - If detached, just let it settle without affecting cache\n\n  const cache3 = new Map();\n  const pending3 = new Map();\n\n  function get3(key) {\n    // Check cache\n    const cached = cache3.get(key);\n    if (cached !== undefined && now() < cached.expiresAt) {\n      return Promise.resolve(cached.value);\n    }\n    cache3.delete(key);\n\n    // Check pending\n    const pendingEntry = pending3.get(key);\n    if (pendingEntry !== undefined) {\n      return pendingEntry.promise;\n    }\n\n    // Create new load\n    const loadPromise = load(key);\n    \n    // Track whether this load is still \"active\" (not invalidated)\n    let active = true;\n    let settled = false;\n    let resolveFn;\n    let rejectFn;\n    \n    const resultPromise = new Promise((resolve, reject) => {\n      resolveFn = resolve;\n      rejectFn = reject;\n    });\n\n    const entry = {\n      promise: resultPromise,\n      resolve: resolveFn,\n      reject: rejectFn,\n      active: () => active,\n      setDetached: () => { active = false; }\n    };\n\n    pending3.set(key, entry);\n\n    loadPromise.then(\n      (value) => {\n        if (!settled) {\n          settled = true;\n          if (active) {\n            const expiresAt = now() + ttlMs;\n            cache3.set(key, { value, expiresAt });\n            entry.resolve(value);\n          } else {\n            // Detached: old load settled, resolve original callers but don't update cache\n            entry.resolve(value);\n          }\n        }\n      },\n      (err) => {\n        if (!settled) {\n          settled = true;\n          if (active) {\n            cache3.delete(key);\n          }\n          entry.reject(err);\n        }\n      }\n    ).then(() => {\n      pending3.delete(key);\n    });\n\n    return resultPromise;\n  }\n\n  function invalidate3(key) {\n    cache3.delete(key);\n    const entry = pending3.get(key);\n    if (entry !== undefined) {\n      entry.setDetached();\n      // Don't delete from pending yet - the load is still running and needs to settle\n      // But we need to make sure the next get doesn't reuse this entry\n      // Actually, we should delete it so next get creates a new one\n      // But the old load must still settle for original callers...\n      // The original callers have the promise, so they're fine.\n      // We just need to remove the entry from pending.\n      pending3.delete(key);\n    }\n  }\n\n  // Wait, there's an issue. If we delete from pending in invalidate, but the load\n  // is still running, when it settles it will try to delete from pending again.\n  // That's fine, Map.delete is idempotent.\n  \n  // But there's another issue: what if invalidate is called, then another get comes in\n  // before the old load settles? The new get will create a new load. When the old load\n  // settles, it checks active() which is false, so it won't overwrite cache. Good.\n  \n  // What about the case where the old load throws synchronously?\n  // load(key) is called, and if it throws synchronously, the promise will reject.\n  // That's handled by the catch branch.\n\n  // Let me also handle the ttlMs=0 case. If ttlMs=0, expiresAt = now(), so\n  // now() < expiresAt is false, so the cached value is immediately expired.\n  // But concurrent gets for the same key should still deduplicate.\n  // The pending check handles this.\n\n  // One more issue: what if load throws synchronously?\n  // load(key) throws, so loadPromise is a rejected promise.\n  // The .then handlers will catch it. Good.\n\n  // Let me also think about the case where invalidate is called while load is running,\n  // and then another get for the same key happens before the old load settles.\n  // The new get will create a new load. The old load will settle but won't",
+      "reasoning": "",
+      "tool_calls": [],
+      "usage": {
+        "prompt_tokens": 216,
+        "completion_tokens": 2048,
+        "total_tokens": 2264
+      },
+      "seconds": 128.86367878504097,
+      "ttft_seconds": 10.160975778475404,
+      "finish_reason": "length",
+      "tests": {
+        "passed": false,
+        "returncode": 1,
+        "output": "/work/solution.js:262\n  // The new get will create a new load. The old load will settle but won't\n                                                                           \n\nSyntaxError: Unexpected end of input\n    at wrapSafe (node:internal/modules/cjs/loader:1713:18)\n    at Module._compile (node:internal/modules/cjs/loader:1755:20)\n    at Object..js (node:internal/modules/cjs/loader:1913:10)\n    at Module.load (node:internal/modules/cjs/loader:1505:32)\n    at Function._load (node:internal/modules/cjs/loader:1309:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)\n    at Module.require (node:internal/modules/cjs/loader:1527:12)\n    at require (node:internal/modules/helpers:147:16)\n    at Object.<anonymous> (/work/tests.js:1:69)\n    at Module._compile (node:internal/modules/cjs/loader:1781:14)\n\nNode.js v22.23.3\n"
+      },
+      "id": "async_cache",
+      "initial_truncated_attempt": {
+        "content": "```javascript\nfunction createAsyncCache(load, ttlMs, now = Date.now) {\n  const cache = new Map();\n  const pending = new Map();\n\n  function get(key) {\n    const cached = cache.get(key);\n    if (cached !== undefined) {\n      const expiresAt = cached.expiresAt;\n      const value = cached.value;\n      if (now() < expiresAt) {\n        return Promise.resolve(value);\n      }\n      cache.delete(key);\n    }\n\n    const pendingLoad = pending.get(key);\n    if (pendingLoad !== undefined) {\n      return pendingLoad;\n    }\n\n    const promise = (async () => {\n      try {\n        const value = await load(key);\n        const expiresAt = now() + ttlMs;\n        cache.set(key, { value, expiresAt });\n        pending.delete(key);\n        return value;\n      } catch (err) {\n        pending.delete(key);\n        throw err;\n      }\n    })();\n\n    pending.set(key, promise);\n    return promise;\n  }\n\n  function invalidate(key) {\n    cache.delete(key);\n    const pendingLoad = pending.get(key);\n    if (pendingLoad !== undefined) {\n      pending.delete(key);\n      // The old load must still settle for its original callers,\n      // but we've removed it from pending so it can't overwrite newer state.\n      // We need to wrap it so that when it settles, it doesn't affect cache.\n      // Actually, the original promise already has the cache.set inside it.\n      // We need to intercept that. Let's restructure.\n    }\n  }\n\n  // Restructure to handle the detach requirement properly\n  const cache2 = new Map();\n  const pending2 = new Map();\n\n  function get2(key) {\n    const cached = cache2.get(key);\n    if (cached !== undefined) {\n      const expiresAt = cached.expiresAt;\n      const value = cached.value;\n      if (now() < expiresAt) {\n        return Promise.resolve(value);\n      }\n      cache2.delete(key);\n    }\n\n    const pendingLoad = pending2.get(key);\n    if (pendingLoad !== undefined) {\n      return pendingLoad;\n    }\n\n    let resolveCache;\n    let rejectCache;\n    const promise = new Promise((resolve, reject) => {\n      resolveCache = resolve;\n      rejectCache = reject;\n    });\n\n    pending2.set(key, { promise, resolveCache, rejectCache });\n\n    let settled = false;\n    let detach = false;\n\n    const cleanup = () => {\n      if (!settled) {\n        settled = true;\n        pending2.delete(key);\n      }\n    };\n\n    const runLoad = async () => {\n      try {\n        const value = await load(key);\n        if (!settled) {\n          settled = true;\n          if (!detach) {\n            const expiresAt = now() + ttlMs;\n            cache2.set(key, { value, expiresAt });\n            resolveCache(value);\n          } else {\n            // detached: old load settled, don't overwrite newer cache state\n            // but still resolve original callers\n            resolveCache(value);\n          }\n        }\n      } catch (err) {\n        if (!settled) {\n          settled = true;\n          if (!detach) {\n            cache2.delete(key);\n          }\n          rejectCache(err);\n        }\n      }\n    };\n\n    // Start the load\n    runLoad();\n\n    // Return a promise that resolves/rejects based on the load\n    // But we need to handle the case where invalidate is called\n    return promise;\n  }\n\n  function invalidate2(key) {\n    cache2.delete(key);\n    const pendingEntry = pending2.get(key);\n    if (pendingEntry !== undefined) {\n      // Mark as detached so the old load won't overwrite newer cache state\n      // But we need to let the old load settle for its original callers\n      // The original promise is already created and returned to callers.\n      // We need to signal to the running load that it's detached.\n      // Let's add a detach flag to the pending entry.\n      pendingEntry.detach = true;\n      // Remove from pending so next get starts fresh\n      pending2.delete(key);\n    }\n  }\n\n  // Hmm, the above approach with resolveCache/rejectCache is getting complex.\n  // Let me think about this more carefully.\n\n  // The key insight: when invalidate is called, we need to:\n  // 1. Remove from cache\n  //",
+        "reasoning": "",
+        "tool_calls": [],
+        "usage": {
+          "prompt_tokens": 216,
+          "completion_tokens": 1024,
+          "total_tokens": 1240
+        },
+        "seconds": 57.82196137867868,
+        "ttft_seconds": 2.4368892442435026,
+        "finish_reason": "length",
+        "tests": {
+          "passed": false,
+          "returncode": 1,
+          "output": "/work/solution.js:145\n  //\n    \n\nSyntaxError: Unexpected end of input\n    at wrapSafe (node:internal/modules/cjs/loader:1713:18)\n    at Module._compile (node:internal/modules/cjs/loader:1755:20)\n    at Object..js (node:internal/modules/cjs/loader:1913:10)\n    at Module.load (node:internal/modules/cjs/loader:1505:32)\n    at Function._load (node:internal/modules/cjs/loader:1309:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)\n    at Module.require (node:internal/modules/cjs/loader:1527:12)\n    at require (node:internal/modules/helpers:147:16)\n    at Object.<anonymous> (/work/tests.js:1:69)\n    at Module._compile (node:internal/modules/cjs/loader:1781:14)\n\nNode.js v22.23.3\n"
+        },
+        "id": "async_cache"
+      },
+      "total_attempt_seconds": 186.68564016371965,
+      "max_tokens": 2048,
+      "initial_test_result": {
+        "passed": false,
+        "returncode": 1,
+        "output": "/work/solution.js:262\n  // The new get will create a new load. The old load will settle but won't\n                                                                           \n\nSyntaxError: Unexpected end of input\n    at wrapSafe (node:internal/modules/cjs/loader:1713:18)\n    at Module._compile (node:internal/modules/cjs/loader:1755:20)\n    at Object..js (node:internal/modules/cjs/loader:1913:10)\n    at Module.load (node:internal/modules/cjs/loader:1505:32)\n    at Function._load (node:internal/modules/cjs/loader:1309:12)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)\n    at Module.require (node:internal/modules/cjs/loader:1527:12)\n    at require (node:internal/modules/helpers:147:16)\n    at Object.<anonymous> (/work/tests.js:1:69)\n    at Module._compile (node:internal/modules/cjs/loader:1781:14)\n\nNode.js v22.23.3\n"
+      },
+      "test_harness": "2026-10-07.v1-completion-checked"
+    }
+  ],
+  "tool_loop": {
+    "first": {
+      "content": "",
+      "reasoning": "",
+      "tool_calls": [
+        {
+          "id": "call_08bde0573a0e0c9524400cec",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\":\"src/settings.py\"}"
+          }
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 308,
+        "completion_tokens": 26,
+        "total_tokens": 334
+      },
+      "seconds": 5.356864733621478,
+      "ttft_seconds": 5.356760507449508,
+      "finish_reason": "tool_calls"
+    },
+    "valid_call": true,
+    "passed": true,
+    "second": {
+      "content": "The integer assigned to RETRY_LIMIT is **17**.",
+      "reasoning": "",
+      "tool_calls": [],
+      "usage": {
+        "prompt_tokens": 344,
+        "completion_tokens": 12,
+        "total_tokens": 356
+      },
+      "seconds": 4.954619091004133,
+      "ttft_seconds": 4.363089391961694,
+      "finish_reason": "stop"
+    }
+  },
+  "finished": "2026-10-07T16:41:57Z",
+  "protocol": "2026-10-07.v1"
+}

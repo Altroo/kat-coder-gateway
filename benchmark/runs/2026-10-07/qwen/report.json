@@ -1,0 +1,149 @@
+{
+  "protocol": "2026-10-07.v1",
+  "label": "qwen",
+  "model": "qwen",
+  "url": "http://127.0.0.1:18180",
+  "started": "2026-10-07T16:50:11Z",
+  "settings": {
+    "model": "qwen",
+    "temperature": 0,
+    "top_p": 1,
+    "enable_thinking": false,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    },
+    "max_tokens": 1024
+  },
+  "tasks": [
+    {
+      "content": "```python\nfrom decimal import Decimal, ROUND_HALF_UP, InvalidOperation\nimport math\n\n\ndef invoice_total(lines, discount_percent=\"0\"):\n    if not isinstance(lines, list):\n        raise ValueError(\"lines must be a list\")\n\n    try:\n        discount = Decimal(str(discount_percent))\n    except (InvalidOperation, ValueError, TypeError):\n        raise ValueError(\"invalid discount_percent\")\n\n    if not math.isfinite(float(discount)):\n        raise ValueError(\"discount_percent must be finite\")\n    if discount < 0 or discount > 100:\n        raise ValueError(\"discount_percent must be between 0 and 100\")\n\n    total_net = Decimal(\"0\")\n    total_tax = Decimal(\"0\")\n\n    for line in lines:\n        if not isinstance(line, dict):\n            raise ValueError(\"each line must be a dictionary\")\n\n        for field in (\"quantity\", \"unit_price\", \"vat_percent\"):\n            if field not in line:\n                raise ValueError(f\"missing field: {field}\")\n\n        try:\n            quantity = Decimal(str(line[\"quantity\"]))\n            unit_price = Decimal(str(line[\"unit_price\"]))\n            vat_percent = Decimal(str(line[\"vat_percent\"]))\n        except (InvalidOperation, ValueError, TypeError):\n            raise ValueError(\"invalid decimal value\")\n\n        for val, name in ((quantity, \"quantity\"), (unit_price, \"unit_price\"), (vat_percent, \"vat_percent\")):\n            if not math.isfinite(float(val)):\n                raise ValueError(f\"{name} must be finite\")\n            if val < 0:\n                raise ValueError(f\"{name} must be non-negative\")\n\n        gross = quantity * unit_price\n        net = gross * (Decimal(\"1\") - discount / Decimal(\"100\"))\n        net = net.quantize(Decimal(\"0.01\"), rounding=ROUND_HALF_UP)\n\n        tax = net * (vat_percent / Decimal(\"100\"))\n        tax = tax.quantize(Decimal(\"0.01\"), rounding=ROUND_HALF_UP)\n\n        total_net += net\n        total_tax += tax\n\n    total = total_net + total_tax\n\n    return {\n        \"net\": str(total_net.quantize(Decimal(\"0.01\"), rounding=ROUND_HALF_UP)),\n        \"tax\": str(total_tax.quantize(Decimal(\"0.01\"), rounding=ROUND_HALF_UP)),\n        \"total\": str(total.quantize(Decimal(\"0.01\"), rounding=ROUND_HALF_UP)),\n    }\n```",
+      "reasoning": "",
+      "tool_calls": [],
+      "usage": {
+        "completion_tokens": 538,
+        "prompt_tokens": 237,
+        "total_tokens": 775,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "seconds": 188.54356238432229,
+      "ttft_seconds": 6.724348288029432,
+      "finish_reason": "stop",
+      "tests": {
+        "passed": true,
+        "returncode": 0,
+        "output": "..........\n----------------------------------------------------------------------\nRan 10 tests in 0.000s\n\nOK\n"
+      },
+      "id": "invoice_decimal",
+      "initial_test_result": {
+        "passed": true,
+        "returncode": 0,
+        "output": "..........\n----------------------------------------------------------------------\nRan 10 tests in 0.000s\n\nOK\n"
+      },
+      "test_harness": "2026-10-07.v1-completion-checked"
+    },
+    {
+      "content": "```python\ndef order_tasks(tasks):\n    if not tasks:\n        return []\n\n    # Validate and build structures\n    seen_ids = set()\n    task_order = []  # original order of ids\n    deps = {}  # id -> set of dependency ids\n\n    for task in tasks:\n        tid = task[\"id\"]\n        if tid in seen_ids:\n            raise ValueError(f\"Duplicate task id: {tid}\")\n        seen_ids.add(tid)\n        task_order.append(tid)\n\n        dep_list = task.get(\"depends_on\", [])\n        dep_set = set()\n        for d in dep_list:\n            if d == tid:\n                raise ValueError(f\"Self dependency on task: {tid}\")\n            dep_set.add(d)\n        deps[tid] = dep_set\n\n    # Validate all dependencies are known\n    for tid in task_order:\n        for d in deps[tid]:\n            if d not in seen_ids:\n                raise ValueError(f\"Unknown dependency: {d}\")\n\n    # Build in-degree map and adjacency (dependents)\n    in_degree = {tid: 0 for tid in task_order}\n    dependents = {tid: [] for tid in task_order}  # tid -> list of tasks that depend on tid\n\n    for tid in task_order:\n        for d in deps[tid]:\n            in_degree[tid] += 1\n            dependents[d].append(tid)\n\n    # Ready queue: tasks with in_degree 0, ordered by original input order\n    # We need to pick the ready task that appeared earliest in the original input.\n    # Use a list of ready tasks and always pick the one with the smallest original index.\n    # To do this efficiently, we can maintain a list and scan, but for 2000 tasks that's fine.\n    # Alternatively, use a heap keyed by original index.\n\n    import heapq\n\n    # Map id -> original index\n    original_index = {tid: i for i, tid in enumerate(task_order)}\n\n    # Initialize heap with all tasks that have in_degree 0\n    heap = []\n    for tid in task_order:\n        if in_degree[tid] == 0:\n            heapq.heappush(heap, (original_index[tid], tid))\n\n    result = []\n    processed = 0\n\n    while heap:\n        _, tid = heapq.heappop(heap)\n        result.append(tid)\n        processed += 1\n\n        for dependent in dependents[tid]:\n            in_degree[dependent] -= 1\n            if in_degree[dependent] == 0:\n                heapq.heappush(heap, (original_index[dependent], dependent))\n\n    if processed != len(task_order):\n        raise ValueError(\"Cycle detected in task dependencies\")\n\n    return result\n```",
+      "reasoning": "",
+      "tool_calls": [],
+      "usage": {
+        "completion_tokens": 597,
+        "prompt_tokens": 162,
+        "total_tokens": 759,
+        "prompt_tokens_details": {
+          "cached_tokens": 29
+        }
+      },
+      "seconds": 205.15945018269122,
+      "ttft_seconds": 4.334812063723803,
+      "finish_reason": "stop",
+      "tests": {
+        "passed": true,
+        "returncode": 0,
+        "output": "..........\n----------------------------------------------------------------------\nRan 10 tests in 0.004s\n\nOK\n"
+      },
+      "id": "dependency_order",
+      "initial_test_result": {
+        "passed": true,
+        "returncode": 0,
+        "output": "..........\n----------------------------------------------------------------------\nRan 10 tests in 0.004s\n\nOK\n"
+      },
+      "test_harness": "2026-10-07.v1-completion-checked"
+    },
+    {
+      "content": "```js\n'use strict';\n\nfunction createAsyncCache(load, ttlMs, now = Date.now) {\n  const cache = new Map(); // key -> { value, expiresAt }\n  const inFlight = new Map(); // key -> { promise, token }\n\n  function get(key) {\n    const current = now();\n\n    // Check cache\n    const entry = cache.get(key);\n    if (entry !== undefined) {\n      if (current < entry.expiresAt) {\n        return Promise.resolve(entry.value);\n      } else {\n        // Expired, remove it\n        cache.delete(key);\n      }\n    }\n\n    // Check in-flight\n    const inflight = inFlight.get(key);\n    if (inflight !== undefined) {\n      return inflight.promise;\n    }\n\n    // Start a new load\n    let resolvePromise;\n    let rejectPromise;\n    const promise = new Promise((resolve, reject) => {\n      resolvePromise = resolve;\n      rejectPromise = reject;\n    });\n\n    const token = {};\n    inFlight.set(key, { promise, token });\n\n    let result;\n    try {\n      result = load(key);\n    } catch (err) {\n      // Synchronous throw: clean up in-flight, reject\n      inFlight.delete(key);\n      rejectPromise(err);\n      return promise;\n    }\n\n    Promise.resolve(result).then(\n      (value) => {\n        // Only update cache if this is still the current in-flight for this key\n        const currentInflight = inFlight.get(key);\n        if (currentInflight !== undefined && currentInflight.token === token) {\n          inFlight.delete(key);\n          const expiresAt = now() + ttlMs;\n          cache.set(key, { value, expiresAt });\n        }\n        resolvePromise(value);\n      },\n      (err) => {\n        // Rejections are not cached; clean up in-flight if still current\n        const currentInflight = inFlight.get(key);\n        if (currentInflight !== undefined && currentInflight.token === token) {\n          inFlight.delete(key);\n        }\n        rejectPromise(err);\n      }\n    );\n\n    return promise;\n  }\n\n  function invalidate(key) {\n    cache.delete(key);\n    inFlight.delete(key);\n  }\n\n  return { get, invalidate };\n}\n\nmodule.exports = { createAsyncCache };\n```",
+      "reasoning": "",
+      "tool_calls": [],
+      "usage": {
+        "completion_tokens": 533,
+        "prompt_tokens": 216,
+        "total_tokens": 749,
+        "prompt_tokens_details": {
+          "cached_tokens": 30
+        }
+      },
+      "seconds": 185.82680454291403,
+      "ttft_seconds": 5.375197345390916,
+      "finish_reason": "stop",
+      "tests": {
+        "passed": false,
+        "returncode": 1,
+        "output": "PASS deduplicate\nPASS different keys\nPASS expiry from fulfillment\nPASS rejection retry\nFAIL synchronous throws: Expected values to be strictly equal:\n\n2 !== 1\n\nPASS invalidate value\nPASS old fulfillment\nPASS old rejection\nPASS zero ttl\nPASS undefined cached\n{\"tests\":10,\"failures\":1}\n"
+      },
+      "id": "async_cache",
+      "initial_test_result": {
+        "passed": false,
+        "returncode": 1,
+        "output": "PASS deduplicate\nPASS different keys\nPASS expiry from fulfillment\nPASS rejection retry\nFAIL synchronous throws: Expected values to be strictly equal:\n\n2 !== 1\n\nPASS invalidate value\nPASS old fulfillment\nPASS old rejection\nPASS zero ttl\nPASS undefined cached\n{\"tests\":10,\"failures\":1}\n"
+      },
+      "test_harness": "2026-10-07.v1-completion-checked"
+    }
+  ],
+  "tool_loop": {
+    "first": {
+      "content": "",
+      "reasoning": "",
+      "tool_calls": [
+        {
+          "id": "NOQa2alme1jK50bZmD3DHXKczTiDa4yk",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\":\"src/settings.py\"}"
+          }
+        }
+      ],
+      "usage": {
+        "completion_tokens": 27,
+        "prompt_tokens": 293,
+        "total_tokens": 320,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "seconds": 17.5635799318552,
+      "ttft_seconds": 11.180770121514797,
+      "finish_reason": "tool_calls"
+    },
+    "valid_call": true,
+    "passed": true,
+    "second": {
+      "content": "The integer assigned to `RETRY_LIMIT` is **17**.",
+      "reasoning": "",
+      "tool_calls": [],
+      "usage": {
+        "completion_tokens": 15,
+        "prompt_tokens": 344,
+        "total_tokens": 359,
+        "prompt_tokens_details": {
+          "cached_tokens": 319
+        }
+      },
+      "seconds": 6.118672097101808,
+      "ttft_seconds": 1.4359003491699696,
+      "finish_reason": "stop"
+    }
+  },
+  "finished": "2026-10-07T17:00:16Z"
+}

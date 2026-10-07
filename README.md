@@ -269,6 +269,13 @@ See [docs/deployment.md](docs/deployment.md) for deployment details.
 It also documents the optional bare Git remote and rollback-capable deployment
 hook used for repeatable production updates.
 
+## Benchmark coding models
+
+Use [benchmark/benchmark.md](benchmark/benchmark.md) for the fixed tasks, scoring,
+resource limits, and commands. Dated comparisons are recorded in
+[benchmark/results.md](benchmark/results.md), with raw outputs retained beside
+them so a new model can be compared against the same KAT baseline.
+
 ## Upstream and license
 
 KAT-Coder Gateway is based on
