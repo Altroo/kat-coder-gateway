@@ -24,7 +24,7 @@ included in this repository.
 ## Tested configuration
 
 - Model: KAT-Coder V2.5 Dev, Colibri int4 gs64
-- Runtime: Colibri v1.12.0 Qwen3.6 engine
+- Runtime: Colibri v2.0.0 Qwen3.6 engine
 - Context window: 65,536 tokens
 - Maximum output: 8,192 tokens
 - Inference: CPU only, eight physical threads

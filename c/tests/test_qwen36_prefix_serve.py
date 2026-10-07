@@ -42,14 +42,15 @@ class Qwen36PrefixServeTest(PrefixReuseContract, unittest.TestCase):
                            {"SNAP": str(FIXTURE), "SERVE": "1", "COLI_DENSE_I8": "0"},
                            log_prefix=log_prefix, reuse=reuse)
 
-    def test_cancel_during_prefill_precedes_generated_data(self):
+    def test_cancel_during_prefill_does_not_process_the_whole_prompt(self):
         engine = ServeEngine(
             ENGINE,
             ["8", "8"],
             {"SNAP": str(FIXTURE), "SERVE": "1", "COLI_DENSE_I8": "0",
              "QWEN36_SERVE_PREFILL_CHUNK": "1"},
-            log_prefix=False,
+            log_prefix=True,
         )
+        self.addCleanup(engine.close)
         prompt = b"x" * 400
         engine.p.stdin.write(
             f"SUBMIT cancel-prefill 0 {len(prompt)} 4 0 1\n".encode()
@@ -77,8 +78,67 @@ class Qwen36PrefixServeTest(PrefixReuseContract, unittest.TestCase):
                 break
 
         # Cancellation must not poison the persistent process or its next turn.
-        engine.ask("after-cancel", b"still responsive", max_tok=1)
-        engine.close()
+        actual = engine.ask("after-cancel", prompt + b"y", max_tok=4)
+        fresh = self.spawn(log_prefix=False)
+        self.addCleanup(fresh.close)
+        self.assertEqual(actual, fresh.ask("fresh", prompt + b"y", max_tok=4))
+        log = engine.close()
+        self.assertNotIn("[PREFIX] reusing 400 of 401 prompt tokens", log,
+                         "CANCEL was acknowledged only after all 400 prompt tokens ran")
+
+    def test_chunked_prefill_matches_whole_prompt(self):
+        prompts = [b"Repeated prefix. " * 20,
+                   b"def process(items): return sorted(set(items))\n" * 7]
+        for rows in (1, 7, 128):
+            with self.subTest(rows=rows):
+                chunked = ServeEngine(ENGINE, ["8", "8"], {
+                    "SNAP": str(FIXTURE), "SERVE": "1", "COLI_DENSE_I8": "0",
+                    "QWEN36_SERVE_PREFILL_CHUNK": str(rows)})
+                whole = ServeEngine(ENGINE, ["8", "8"], {
+                    "SNAP": str(FIXTURE), "SERVE": "1", "COLI_DENSE_I8": "0",
+                    "QWEN36_SERVE_PREFILL_CHUNK": "0"})
+                try:
+                    for index, prompt in enumerate(prompts):
+                        self.assertEqual(chunked.ask(f"chunk-{index}", prompt, max_tok=8),
+                                         whole.ask(f"whole-{index}", prompt, max_tok=8))
+                finally:
+                    chunked.close()
+                    whole.close()
+
+    def test_stop_is_successful_and_cancel_remains_an_error(self):
+        for slots in (1, 2):
+            for command in ("STOP", "CANCEL"):
+                with self.subTest(slots=slots, command=command):
+                    engine = ServeEngine(ENGINE, ["8", "8"], {
+                        "SNAP": str(FIXTURE), "SERVE": "1", "COLI_DENSE_I8": "0",
+                        "KV_SLOTS": str(slots), "Q36_MAXT": "1024"})
+                    try:
+                        prompt = b"test normal stop"
+                        engine.p.stdin.write(f"SUBMIT control 0 {len(prompt)} 128 0 1\n".encode() + prompt + b"\n")
+                        engine.p.stdin.flush()
+                        sent = False
+                        while True:
+                            line = engine.p.stdout.readline()
+                            self.assertTrue(line, "engine exited before terminal frame")
+                            text = line.decode("latin-1").strip()
+                            if text.startswith("DATA control "):
+                                engine.p.stdout.read(int(text.split()[2]))
+                                engine.p.stdout.readline()
+                                if not sent:
+                                    engine.p.stdin.write(f"{command} control\n".encode())
+                                    engine.p.stdin.flush()
+                                    sent = True
+                            if text.startswith(("DONE control ", "ERROR control ")):
+                                self.assertTrue(sent)
+                                if command == "STOP":
+                                    self.assertTrue(text.startswith("DONE control STAT "), text)
+                                    self.assertEqual(text.split()[-1], "0", "STOP must not be length-limited")
+                                else:
+                                    self.assertEqual(text, "ERROR control CANCELLED")
+                                break
+                        engine.ask("after-control", b"still responsive", max_tok=1)
+                    finally:
+                        engine.close()
 
 
 if __name__ == "__main__":
