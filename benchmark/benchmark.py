@@ -73,6 +73,23 @@ test('undefined cached',async()=>{let n=0,c=createAsyncCache(async()=>{n++;retur
 (async()=>{let failures=0;for(const [name,fn]of cases){let timer;try{await Promise.race([fn(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('test did not settle within 1 second')),1000)})]);console.log('PASS '+name)}catch(e){failures++;console.log('FAIL '+name+': '+e.message)}finally{clearTimeout(timer)}}console.log(JSON.stringify({tests:cases.length,failures}));process.exitCode=failures?1:0})()
 ''')]
 
+def supported_reasoning_effort(url, key, requested):
+    """Omit an effort field when the serving runtime explicitly does not support it."""
+    if requested is None:
+        return None
+    headers = {'Authorization': 'Bearer ' + key} if key else {}
+    try:
+        req = urllib.request.Request(url + '/props', headers=headers)
+        with urllib.request.urlopen(req, timeout=5) as response:
+            props = json.load(response)
+    except urllib.error.HTTPError as error:
+        if error.code == 404:  # Colibri exposes no llama.cpp /props endpoint.
+            return requested
+        raise
+    if props.get('chat_template_caps', {}).get('supports_reasoning_effort') is False:
+        return None
+    return requested
+
 def chat(url,key,body):
     start=time.monotonic(); first=None; content=[];reasoning=[];calls={};usage={};finish=None
     headers={'Content-Type':'application/json'}
@@ -123,7 +140,7 @@ def run_code(task,code,path):
                        stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=10)
 
 def main():
-    ap=argparse.ArgumentParser();ap.add_argument('--label',required=True);ap.add_argument('--url',required=True);ap.add_argument('--model',required=True);ap.add_argument('--env-file');ap.add_argument('--only');ap.add_argument('--max-tokens',type=int,default=1024);a=ap.parse_args()
+    ap=argparse.ArgumentParser();ap.add_argument('--label',required=True);ap.add_argument('--url',required=True);ap.add_argument('--model',required=True);ap.add_argument('--env-file');ap.add_argument('--only');ap.add_argument('--max-tokens',type=int,default=1024);ap.add_argument('--protocol',default='2026-10-07.v1');ap.add_argument('--thinking',action='store_true');ap.add_argument('--temperature',type=float,default=0);ap.add_argument('--top-p',type=float,default=1);ap.add_argument('--reasoning-effort');ap.add_argument('--functions-only',action='store_true');a=ap.parse_args()
     key=''
     if a.env_file:
         for line in pathlib.Path(a.env_file).read_text().splitlines():
@@ -136,9 +153,14 @@ def main():
     if (outdir/'report.json').exists() and not a.only:
         ap.error('report already exists; choose a new label or explicitly rerun a task with --only')
     outdir.mkdir(parents=True,exist_ok=True)
-    common=dict(model=a.model,temperature=0,top_p=1,enable_thinking=False,chat_template_kwargs={'enable_thinking':False},max_tokens=a.max_tokens)
-    report=dict(protocol='2026-10-07.v1',label=a.label,model=a.model,url=a.url,started=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),settings=common,tasks=[])
-    if a.only and (outdir/'report.json').exists(): report=json.loads((outdir/'report.json').read_text())
+    common=dict(model=a.model,temperature=a.temperature,top_p=a.top_p,enable_thinking=a.thinking,chat_template_kwargs={'enable_thinking':a.thinking},max_tokens=a.max_tokens)
+    effort=supported_reasoning_effort(a.url,key,a.reasoning_effort)
+    if effort:common['reasoning_effort']=effort
+    report=dict(protocol=a.protocol,label=a.label,model=a.model,url=a.url,started=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),settings=common,tasks=[])
+    if a.only and (outdir/'report.json').exists():
+        report=json.loads((outdir/'report.json').read_text())
+        if report['settings']!=common or report['protocol']!=a.protocol:
+            ap.error('saved report settings differ; use a new label')
     def save():(outdir/'report.json').write_text(json.dumps(report,indent=2,ensure_ascii=False))
     for task in TASKS:
         if a.only and task['id'] != a.only: continue
@@ -156,7 +178,9 @@ def main():
             r['tests']=run_code(task,code,outdir/task['id']);r['id']=task['id']
         except Exception as e:r=dict(id=task['id'],error=str(e),tests=dict(passed=False))
         report['tasks']=[old for old in report['tasks'] if old['id'] != task['id']];report['tasks'].append(r);save();print(a.label,task['id'],json.dumps({k:r[k] for k in ('seconds','usage','finish_reason') if k in r}),r['tests']['passed'],flush=True)
-    if a.only: return
+    if a.only or a.functions_only:
+        if a.functions_only:report['tool_loop']={'skipped':True,'reason':'Function-only reasoning supplement'}
+        report['finished']=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime());save();return
     print(a.label,'tool loop starting',flush=True)
     tool={'type':'function','function':{'name':'read_file','description':'Read a source file','parameters':{'type':'object','properties':{'path':{'type':'string'}},'required':['path']}}}
     messages=[{'role':'user','content':'Read src/settings.py with the read_file tool, then tell me the integer assigned to RETRY_LIMIT. Do not guess.'}]

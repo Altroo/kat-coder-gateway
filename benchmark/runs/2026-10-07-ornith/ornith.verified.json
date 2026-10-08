@@ -1,0 +1,10 @@
+{
+  "repo": "ornith-ai/Ornith-1.5-35B-A3B-GGUF",
+  "revision": "12393612fd4f730ff5aadc23e9b8f9648aa49ceb",
+  "file": "Ornith-1.5-35B-Q4_K_M.gguf",
+  "size_bytes": 21713463040,
+  "sha256": "42739874cc2ccfdb8523b23fbe52e29b2a7555c8176737ca9ca0b5d59859d41f",
+  "license": "MIT",
+  "download_seconds": 277.4,
+  "verified": true
+}

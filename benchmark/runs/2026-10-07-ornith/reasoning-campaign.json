@@ -1,0 +1,60 @@
+{
+  "screening_protocol": "2026-10-07.v2-thinking",
+  "repository_protocol": null,
+  "candidate": {
+    "repo": "ornith-ai/Ornith-1.5-35B-A3B-GGUF",
+    "revision": "12393612fd4f730ff5aadc23e9b8f9648aa49ceb",
+    "file": "Ornith-1.5-35B-Q4_K_M.gguf",
+    "size_bytes": 21713463040,
+    "sha256": "42739874cc2ccfdb8523b23fbe52e29b2a7555c8176737ca9ca0b5d59859d41f",
+    "license": "MIT",
+    "download_seconds": 277.4,
+    "verified": true
+  },
+  "llama_image": "ghcr.io/ggml-org/llama.cpp@sha256:33868c035b21dc63f7c60b7438774283fd99215bc319114eb03de5df4ce7cd6b",
+  "settings": {
+    "threads": 8,
+    "candidate_context": 16384,
+    "candidate_memory_gib": 36,
+    "temperature": 0,
+    "thinking": true,
+    "screening_max_tokens": 4096
+  },
+  "runs": [
+    {
+      "label": "kat-reasoning",
+      "warmup": {
+        "usage": {
+          "prompt_tokens": 16,
+          "completion_tokens": 2,
+          "total_tokens": 18
+        },
+        "seconds": 4.2898987121880054,
+        "ttft_seconds": 3.9250286985188723,
+        "finish_reason": "stop"
+      },
+      "seconds": 364.1500732693821,
+      "peak_process_rss_mib": 21814.9
+    },
+    {
+      "label": "ornith-reasoning",
+      "warmup": {
+        "usage": {
+          "completion_tokens": 2,
+          "prompt_tokens": 16,
+          "total_tokens": 18,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "seconds": 0.413426848128438,
+        "ttft_seconds": 0.36746055260300636,
+        "finish_reason": "stop"
+      },
+      "seconds": 38.06493913754821,
+      "peak_process_rss_mib": 36043.8
+    }
+  ],
+  "error": "Benchmark interrupted; restoring KAT",
+  "kat_restored": true
+}

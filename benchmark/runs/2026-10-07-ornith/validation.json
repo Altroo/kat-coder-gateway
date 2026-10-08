@@ -1,0 +1,60 @@
+{
+  "framework_reference_checks": {
+    "passed": 20,
+    "total": 20,
+    "evidence": "repo-selftest.json"
+  },
+  "python_syntax": {
+    "scripts_parsed": 9
+  },
+  "request_validation": {
+    "kat_high_preserved": true,
+    "ornith_effort_omitted": true,
+    "thinking_on_both_framework_tasks": true,
+    "reasoning_history_round_trip": true,
+    "max_response_tokens": 8192
+  },
+  "template_probe": {
+    "actual_newlines": 6,
+    "literal_backslash_n": 0,
+    "initial_defect_claim_retracted": true
+  },
+  "final_service_check": {
+    "checked_at": "2026-10-08T10:18:08Z",
+    "service": "active",
+    "health_http_status": 200,
+    "deployment": "/var/www/kat-coder-gateway-releases/f2e1fc04",
+    "candidate_container_removed": true,
+    "stream": {
+      "content": "OK.",
+      "finish_reason": "stop",
+      "usage": {
+        "prompt_tokens": 16,
+        "completion_tokens": 2,
+        "total_tokens": 18
+      },
+      "seconds": 4.307972554117441
+    }
+  },
+  "resume_completed_task_hashes_preserved": true,
+  "thinking_observed": {
+    "kat-thinking": {
+      "invoice_decimal": 17418,
+      "dependency_order": 1536,
+      "async_cache": 23637,
+      "django_tenant": 10353,
+      "react_search": 2966
+    },
+    "ornith-thinking": {
+      "invoice_decimal": 29611,
+      "dependency_order": 17719,
+      "async_cache": 31261,
+      "django_tenant": 12869,
+      "react_search": 33962
+    }
+  },
+  "ornith_react_files_unchanged": true,
+  "budget_probe_completed": true,
+  "source_manifest_hashes_match": true,
+  "diff_whitespace_check": "Runner, fixtures and documentation pass. Verbatim generated solution artifacts retain original trailing whitespace as benchmark evidence."
+}

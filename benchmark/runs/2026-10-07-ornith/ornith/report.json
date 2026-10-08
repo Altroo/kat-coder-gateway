@@ -1,0 +1,131 @@
+{
+  "protocol": "2026-10-07.v2-fast",
+  "label": "ornith",
+  "model": "ornith",
+  "url": "http://127.0.0.1:18180",
+  "started": "2026-10-07T17:33:06Z",
+  "settings": {
+    "model": "ornith",
+    "temperature": 0,
+    "top_p": 1,
+    "enable_thinking": false,
+    "chat_template_kwargs": {
+      "enable_thinking": false
+    },
+    "max_tokens": 4096
+  },
+  "tasks": [
+    {
+      "content": "```python\nfrom decimal import Decimal, ROUND_HALF_UP, InvalidOperation, getcontext\n\n\ndef invoice_total(lines, discount_percent=\"0\"):\n    if not isinstance(lines, list):\n        raise ValueError(\"lines must be a list\")\n\n    try:\n        discount = Decimal(discount_percent)\n    except (InvalidOperation, TypeError):\n        raise ValueError(\"Invalid discount_percent value\")\n\n    if discount < 0 or discount > 100:\n        raise ValueError(\"Discount must be between 0 and 100\")\n\n    required_fields = (\"quantity\", \"unit_price\", \"vat_percent\")\n    quant = Decimal(\"0.01\")\n\n    total_net = Decimal(\"0\")\n    total_tax = Decimal(\"0\")\n\n    for line in lines:\n        if not isinstance(line, dict):\n            raise ValueError(\"Each line must be a dictionary\")\n\n        for field in required_fields:\n            if field not in line:\n                raise ValueError(f\"Missing field: {field}\")\n\n        raw_quantity = line[\"quantity\"]\n        raw_unit_price = line[\"unit_price\"]\n        raw_vat_percent = line[\"vat_percent\"]\n\n        try:\n            quantity = Decimal(raw_quantity)\n            unit_price = Decimal(raw_unit_price)\n            vat_percent = Decimal(raw_vat_percent)\n        except (InvalidOperation, TypeError):\n            raise ValueError(\"Invalid decimal value in line\")\n\n        for value in (quantity, unit_price, vat_percent):\n            if not value.is_finite():\n                raise ValueError(\"Non-finite value encountered\")\n\n        if quantity < 0:\n            raise ValueError(\"Quantity cannot be negative\")\n        if unit_price < 0:\n            raise ValueError(\"Unit price cannot be negative\")\n        if vat_percent < 0:\n            raise ValueError(\"VAT percent cannot be negative\")\n\n        net = quantity * unit_price\n        net = net * (Decimal(\"1\") - discount / Decimal(\"100\"))\n        net_rounded = net.quantize(quant, rounding=ROUND_HALF_UP)\n\n        tax = net_rounded * (vat_percent / Decimal(\"100\"))\n        tax_rounded = tax.quantize(quant, rounding=ROUND_HALF_UP)\n\n        total_net += net_rounded\n        total_tax += tax_rounded\n\n    total = total_net + total_tax\n\n    return {\n        \"net\": total_net.quantize(quant, rounding=ROUND_HALF_UP).format(\"F\"),\n        \"tax\": total_tax.quantize(quant, rounding=ROUND_HALF_UP).format(\"F\"),\n        \"total\": total.quantize(quant, rounding=ROUND_HALF_UP).format(\"F\"),\n    }\n```",
+      "reasoning": "",
+      "tool_calls": [],
+      "usage": {
+        "completion_tokens": 573,
+        "prompt_tokens": 237,
+        "total_tokens": 810,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "seconds": 29.57167822867632,
+      "ttft_seconds": 1.9922424219548702,
+      "finish_reason": "stop",
+      "tests": {
+        "passed": false,
+        "returncode": 1,
+        "output": "EEEEEE..E.\n======================================================================\nERROR: test_basic (__main__.Tests.test_basic)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/work/tests.py\", line 6, in test_basic\n    def test_basic(self): self.assertEqual(invoice_total([self.line('2','10','20')]), {'net':'20.00','tax':'4.00','total':'24.00'})\n                                           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/work/solution.py\", line 65, in invoice_total\n    \"net\": total_net.quantize(quant, rounding=ROUND_HALF_UP).format(\"F\"),\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'decimal.Decimal' object has no attribute 'format'\n\n======================================================================\nERROR: test_discount (__main__.Tests.test_discount)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/work/tests.py\", line 8, in test_discount\n    def test_discount(self): self.assertEqual(invoice_total([self.line('3','19.99','20')], '12.5'), {'net':'52.47','tax':'10.49','total':'62.96'})\n                                              ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/work/solution.py\", line 65, in invoice_total\n    \"net\": total_net.quantize(quant, rounding=ROUND_HALF_UP).format(\"F\"),\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'decimal.Decimal' object has no attribute 'format'\n\n======================================================================\nERROR: test_discount_bounds (__main__.Tests.test_discount_bounds)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/work/tests.py\", line 22, in test_discount_bounds\n    with self.assertRaises(ValueError): invoice_total([],bad)\n                                        ~~~~~~~~~~~~~^^^^^^^^\n  File \"/work/solution.py\", line 13, in invoice_total\n    if discount < 0 or discount > 100:\n       ^^^^^^^^^^^^\ndecimal.InvalidOperation: [<class 'decimal.InvalidOperation'>]\n\n======================================================================\nERROR: test_empty (__main__.Tests.test_empty)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/work/tests.py\", line 9, in test_empty\n    def test_empty(self): self.assertEqual(invoice_total([]), {'net':'0.00','tax':'0.00','total':'0.00'})\n                                           ~~~~~~~~~~~~~^^^^\n  File \"/work/solution.py\", line 65, in invoice_total\n    \"net\": total_net.quantize(quant, rounding=ROUND_HALF_UP).format(\"F\"),\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'decimal.Decimal' object has no attribute 'format'\n\n======================================================================\nERROR: test_full_discount (__main__.Tests.test_full_discount)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/work/tests.py\", line 12, in test_full_discount\n    def test_full_discount(self): self.assertEqual(invoice_total([self.line('1','9.99','20')],'100')['total'], '0.00')\n                                                   ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/work/solution.py\", line 65, in invoice_total\n    \"net\": total_net.quantize(quant, rounding=ROUND_HALF_UP).format(\"F\"),\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'decimal.Decimal' object has no attribute 'format'\n\n======================================================================\nERROR: test_line_rounding (__main__.Tests.test_line_rounding)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/work/tests.py\", line 7, in test_line_rounding\n    def test_line_rounding(self): self.assertEqual(invoice_total([self.line('1','.025','20')]*2), {'net':'0.06','tax':'0.02','total':'0.08'})\n                                                   ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/work/solution.py\", line 65, in invoice_total\n    \"net\": total_net.quantize(quant, rounding=ROUND_HALF_UP).format(\"F\"),\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'decimal.Decimal' object has no attribute 'format'\n\n======================================================================\nERROR: test_no_mutation (__main__.Tests.test_no_mutation)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/work/tests.py\", line 11, in test_no_mutation\n    lines=[self.line('1','1','0')]; before=copy.deepcopy(lines); invoice_total(lines); self.assertEqual(lines,before)\n                                                                 ~~~~~~~~~~~~~^^^^^^^\n  File \"/work/solution.py\", line 65, in invoice_total\n    \"net\": total_net.quantize(quant, rounding=ROUND_HALF_UP).format(\"F\"),\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'decimal.Decimal' object has no attribute 'format'\n\n----------------------------------------------------------------------\nRan 10 tests in 0.002s\n\nFAILED (errors=7)\n"
+      },
+      "id": "invoice_decimal"
+    },
+    {
+      "content": "```python\ndef order_tasks(tasks):\n    order = []\n    index = {}\n    indegree = {}\n    dependents = {}\n    ids = []\n    for t in tasks:\n        tid = t[\"id\"]\n        if tid in index:\n            raise ValueError(\"Duplicate task id: \" + str(tid))\n        index[tid] = len(ids)\n        indegree[tid] = 0\n        dependents[tid] = []\n        ids.append(tid)\n    for t in tasks:\n        tid = t[\"id\"]\n        deps = t.get(\"depends_on\") or []\n        seen = set()\n        for dep in deps:\n            if dep == tid:\n                raise ValueError(\"Self dependency: \" + str(tid))\n            if dep not in index:\n                raise ValueError(\"Unknown dependency: \" + str(dep))\n            if dep in seen:\n                continue\n            seen.add(dep)\n            indegree[tid] += 1\n            dependents[dep].append(tid)\n    queue = [tid for tid in ids if indegree[tid] == 0]\n    head = 0\n    while head < len(queue):\n        tid = queue[head]\n        head += 1\n        order.append(tid)\n        for dep in dependents[tid]:\n            indegree[dep] -= 1\n            if indegree[dep] == 0:\n                queue.append(dep)\n    if len(order) != len(ids):\n        raise ValueError(\"Cycle detected in tasks\")\n    return order\n```",
+      "reasoning": "",
+      "tool_calls": [],
+      "usage": {
+        "completion_tokens": 336,
+        "prompt_tokens": 162,
+        "total_tokens": 498,
+        "prompt_tokens_details": {
+          "cached_tokens": 29
+        }
+      },
+      "seconds": 17.056341368705034,
+      "ttft_seconds": 1.1314412541687489,
+      "finish_reason": "stop",
+      "tests": {
+        "passed": false,
+        "returncode": 1,
+        "output": ".......F..\n======================================================================\nFAIL: test_reprioritize (__main__.Tests.test_reprioritize)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/work/tests.py\", line 7, in test_reprioritize\n    def test_reprioritize(self): self.assertEqual(order_tasks([{'id':'a','depends_on':['b']},{'id':'b'},{'id':'c'}]),['b','a','c'])\n                                 ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: Lists differ: ['b', 'c', 'a'] != ['b', 'a', 'c']\n\nFirst differing element 1:\n'c'\n'a'\n\n- ['b', 'c', 'a']\n+ ['b', 'a', 'c']\n\n----------------------------------------------------------------------\nRan 10 tests in 0.003s\n\nFAILED (failures=1)\n"
+      },
+      "id": "dependency_order"
+    },
+    {
+      "content": "```js\n'use strict';\n\nfunction createAsyncCache(load, ttlMs, now = Date.now) {\n  const cache = new Map();\n  const inflight = new Map();\n\n  function get(key) {\n    const nowMs = now();\n    const entry = cache.get(key);\n    if (entry !== undefined && entry.expiresAt > nowMs) {\n      return Promise.resolve(entry.value);\n    }\n    if (entry !== undefined) {\n      cache.delete(key);\n    }\n\n    const pending = inflight.get(key);\n    if (pending !== undefined) {\n      return pending.promise;\n    }\n\n    let resolveFn;\n    let rejectFn;\n    const promise = new Promise((resolve, reject) => {\n      resolveFn = resolve;\n      rejectFn = reject;\n    });\n\n    const record = {\n      promise,\n      resolve: resolveFn,\n      reject: rejectFn,\n      active: true,\n      expiresAt: 0,\n    };\n    inflight.set(key, record);\n\n    let settled = false;\n    let result;\n    let isError = false;\n\n    function finalize(value) {\n      if (!record.active) {\n        return;\n      }\n      settled = true;\n      result = value;\n      isError = false;\n      inflight.delete(key);\n      cache.set(key, { value: value, expiresAt: now() + ttlMs });\n      record.active = false;\n      resolveFn(value);\n    }\n\n    function fail(err) {\n      if (!record.active) {\n        return;\n      }\n      settled = true;\n      result = err;\n      isError = true;\n      inflight.delete(key);\n      cache.delete(key);\n      record.active = false;\n      rejectFn(err);\n    }\n\n    function settle() {\n      try {\n        const maybe = load(key);\n        if (maybe instanceof Promise) {\n          maybe.then(\n            (v) => {\n              if (settled) return;\n              finalize(v);\n            },\n            (e) => {\n              if (settled) return;\n              fail(e);\n            }\n          );\n        } else {\n          finalize(maybe);\n        }\n      } catch (e) {\n        fail(e);\n      }\n    }\n\n    settle();\n\n    return promise;\n  }\n\n  function invalidate(key) {\n    cache.delete(key);\n    const pending = inflight.get(key);\n    if (pending !== undefined) {\n      pending.active = false;\n      inflight.delete(key);\n    }\n  }\n\n  return { get: get, invalidate: invalidate };\n}\n\nmodule.exports = { createAsyncCache };\n```",
+      "reasoning": "",
+      "tool_calls": [],
+      "usage": {
+        "completion_tokens": 606,
+        "prompt_tokens": 216,
+        "total_tokens": 822,
+        "prompt_tokens_details": {
+          "cached_tokens": 30
+        }
+      },
+      "seconds": 30.052815517410636,
+      "ttft_seconds": 1.496156245470047,
+      "finish_reason": "stop",
+      "tests": {
+        "passed": false,
+        "returncode": 1,
+        "output": "PASS deduplicate\nPASS different keys\nPASS expiry from fulfillment\nPASS rejection retry\nFAIL synchronous throws: Expected values to be strictly equal:\n\n2 !== 1\n\nPASS invalidate value\nFAIL old fulfillment: test did not settle within 1 second\nFAIL old rejection: test did not settle within 1 second\nPASS zero ttl\nPASS undefined cached\n{\"tests\":10,\"failures\":3}\n"
+      },
+      "id": "async_cache"
+    }
+  ],
+  "tool_loop": {
+    "first": {
+      "content": "I'll read the file for you.\n\n",
+      "reasoning": "",
+      "tool_calls": [
+        {
+          "id": "XH5HDP8vMzpXqrZEQXpiUKRzYePA59vZ",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\":\"src/settings.py\"}"
+          }
+        }
+      ],
+      "usage": {
+        "completion_tokens": 36,
+        "prompt_tokens": 293,
+        "total_tokens": 329,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "seconds": 4.082936750724912,
+      "ttft_seconds": 2.4049047250300646,
+      "finish_reason": "tool_calls"
+    },
+    "valid_call": true,
+    "passed": true,
+    "second": {
+      "content": "The integer assigned to `RETRY_LIMIT` in `src/settings.py` is **17**.",
+      "reasoning": "",
+      "tool_calls": [],
+      "usage": {
+        "completion_tokens": 21,
+        "prompt_tokens": 353,
+        "total_tokens": 374,
+        "prompt_tokens_details": {
+          "cached_tokens": 328
+        }
+      },
+      "seconds": 1.2803378142416477,
+      "ttft_seconds": 0.33981391601264477,
+      "finish_reason": "stop"
+    }
+  },
+  "finished": "2026-10-07T17:34:33Z"
+}

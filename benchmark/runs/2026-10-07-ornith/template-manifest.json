@@ -1,0 +1,8 @@
+{
+  "repo": "ornith-ai/Ornith-1.5-35B-A3B",
+  "revision": "10fbf86fed7ecee4a061f8b499a618f46001cac1",
+  "url": "https://huggingface.co/ornith-ai/Ornith-1.5-35B-A3B/resolve/10fbf86fed7ecee4a061f8b499a618f46001cac1/chat_template.jinja",
+  "file": "ornith-author-template.jinja",
+  "sha256": "182e77dd83bd8e9ca818b240b82e28f243762cd5dda32e6eef327df7b1cd107e",
+  "bytes": 7536
+}

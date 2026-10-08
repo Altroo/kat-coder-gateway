@@ -1,0 +1,41 @@
+{
+  "labels": {
+    "ornith": {
+      "usable_for_model_comparison": true,
+      "status": "thinking off; historical only"
+    },
+    "kat": {
+      "usable_for_model_comparison": true,
+      "status": "thinking off; historical only"
+    },
+    "kat-reasoning": {
+      "usable_for_model_comparison": true,
+      "status": "4096-token preliminary check; superseded"
+    },
+    "ornith-reasoning": {
+      "usable_for_model_comparison": false,
+      "status": "interrupted; no completed comparison"
+    },
+    "kat-thinking": {
+      "usable_for_model_comparison": true,
+      "status": "completed; main 8192-token thinking comparison"
+    },
+    "ornith-thinking": {
+      "usable_for_model_comparison": true,
+      "status": "completed; main 8192-token thinking comparison; two function answers and one repair truncated"
+    },
+    "ornith-thinking-16k": {
+      "usable_for_model_comparison": false,
+      "status": "separate two-task 16384-token diagnostic; do not rank against the main three-task rows"
+    }
+  },
+  "correction": "An initial interpretation of escaped /props output incorrectly suggested malformed newlines. Byte inspection of the saved /apply-template prompt shows six actual line breaks and zero literal backslash-n sequences. No template defect was established. Earlier scores remain thinking-off observations, not the requested thinking-enabled comparison.",
+  "evidence": [
+    "embedded-template-probe.json",
+    "reasoning-runtime-props.json"
+  ],
+  "current_protocols": [
+    "2026-10-07.v3-thinking",
+    "2026-10-07.repo-v2-thinking"
+  ]
+}

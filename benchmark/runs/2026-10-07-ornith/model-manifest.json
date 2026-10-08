@@ -1,0 +1,116 @@
+{
+  "run": "2026-10-07-ornith",
+  "deployment": {
+    "colibri_commit": "f2e1fc04",
+    "colibri_version": "2.0.0",
+    "opencode_version": "2.0.24",
+    "llama_cpp_image": "ghcr.io/ggml-org/llama.cpp@sha256:33868c035b21dc63f7c60b7438774283fd99215bc319114eb03de5df4ce7cd6b",
+    "python_test_image": "python@sha256:bf44cdfcb76cd3b41e879bc058fc37ec5872002ccfde7fcb765e218cde0cd79c",
+    "node_test_image": "node@sha256:c3de60bf2f9dd0ac6370e6117950ff62d6e339527e7472301c9c78a017978392"
+  },
+  "kat": {
+    "container": "KAT-Coder-V2.5-Dev-colibri-i4-gs64",
+    "quantization": "int4 gs64",
+    "metadata_sha256": {
+      "config.json": "170a5e27b32faec4da58d2f983961d0f2791533f0815d5020dc4f4095879f52b",
+      "qwen36_meta.json": "cb2d7d4054865c7d2d6f6da3c902b51d9942e5f19b53e646b23909cdd4ce0fc4",
+      "tokenizer.json": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42"
+    },
+    "cached_download_revision": "f2ccba2bf8aaf8d86fe2f5091def4ba69f5914d1",
+    "weights_identity_note": "Existing deployed container. Metadata hashes recorded; full weight shards were not rehashed during timed inference."
+  },
+  "candidate": {
+    "repo": "ornith-ai/Ornith-1.5-35B-A3B-GGUF",
+    "revision": "12393612fd4f730ff5aadc23e9b8f9648aa49ceb",
+    "file": "Ornith-1.5-35B-Q4_K_M.gguf",
+    "size_bytes": 21713463040,
+    "sha256": "42739874cc2ccfdb8523b23fbe52e29b2a7555c8176737ca9ca0b5d59859d41f",
+    "license": "MIT",
+    "download_seconds": 277.4,
+    "verified": true
+  },
+  "framework_images": {
+    "django_tenant": "sha256:16783a5bdad15b275e36606f54395dfdd6a944fc35d8f7ecb4337990cc8ce110",
+    "react_search": "sha256:027e78e8d7535e808165b62b6ed0233e0ea5dbb510c7f4af2c028b12fc676603"
+  },
+  "protocols": [
+    "2026-10-07.v2-fast",
+    "2026-10-07.repo-v1",
+    "2026-10-07.v2-thinking",
+    "2026-10-07.v3-thinking",
+    "2026-10-07.repo-v2-thinking",
+    "2026-10-08.v3-thinking-budget-probe"
+  ],
+  "source_sha256": {
+    "benchmark/benchmark.py": "b3d4545cd23fc3f764dfa5c3a58a58ba4e3bd6c7d0c74b6ed563f16987aec0cb",
+    "benchmark/campaign.py": "b2d1169a67f200b71645820dea558f28f9cad4dcd7e01df40157d05534cf19ef",
+    "benchmark/candidate_budget_probe.py": "8e2c88f9515cf850284956bba1fb3f21d284f4e402b72982221823c11047f837",
+    "benchmark/compare_candidate.py": "a2c25d119f0287ebca3c68781f737743d96c07c3a4070917a83ee86d129cb4cf",
+    "benchmark/recheck.py": "397ab272a1437b834fb549ef9db0ca4aac703b9401875cc8edb35c76e6c1aecf",
+    "benchmark/repo_fixtures/django_tenant/Dockerfile": "5a2557ec8dfbbf0a4225a2515bc09881d27f0a7e6887a36fe95931221090866e",
+    "benchmark/repo_fixtures/django_tenant/public/billing/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "benchmark/repo_fixtures/django_tenant/public/billing/models.py": "8b3ee466e49cddd4e389ebd55d46690088a5e9105be22d5ea079d67aca71a166",
+    "benchmark/repo_fixtures/django_tenant/public/billing/serializers.py": "6e12feb7cdfdebb14e8f0eb0d2b80130f9c18b7153acf7cbfe95c2ad691dcef7",
+    "benchmark/repo_fixtures/django_tenant/public/billing/views.py": "b0719126dcef64aca2733b4f32b1b650b03f1c762ca63b31d392fd8abc743340",
+    "benchmark/repo_fixtures/django_tenant/public/settings.py": "3a7bac4f8fa0592cb233d7653913fb43eaf505d325ff1992e394ca356afde924",
+    "benchmark/repo_fixtures/django_tenant/reference/billing/serializers.py": "ea7772773de782d43796039e37a23c83da23979343529780bdf083e67e7efa73",
+    "benchmark/repo_fixtures/django_tenant/reference/billing/views.py": "a84a77736feda6ff8ad8ac2cc181d1c95cbfdad0300c37261c1cfb077b26e289",
+    "benchmark/repo_fixtures/django_tenant/tests.py": "03bea652817e48c506ee8613c1bfb3d1628d565b85e7841cabc57c9819600fd1",
+    "benchmark/repo_fixtures/react_search/Dockerfile": "343209ad6423bd8f7e23f3e8f85cc72900ba2d808ee2183fdf9679ab27e85f44",
+    "benchmark/repo_fixtures/react_search/package-lock.json": "d0911bbaa0798d0434491476f9ebe2079c8dbfe09e5e822f58adc424f9cb5453",
+    "benchmark/repo_fixtures/react_search/package.json": "fb9734d434ffac3752b9b405b4224c62da41984442f6a263223e8a657e0cb3e7",
+    "benchmark/repo_fixtures/react_search/public/ArticleResults.js": "1c9ede92079274f1a78e27211a82d85f5cebe89f1c9f677c2a62e12948b7d2bc",
+    "benchmark/repo_fixtures/react_search/public/useArticleSearch.js": "ae0e896f8236777f9a4bd0acda143e043ec0e8b52f9d5d62a9e606fe1a6413d0",
+    "benchmark/repo_fixtures/react_search/reference/useArticleSearch.js": "c3b2322ffc088fd02ee2b728fc0e12b3a817d70c5d3c49d7fa26472b1a55a47f",
+    "benchmark/repo_fixtures/react_search/tests.js": "2a1abf4bea21d37629b503de4738d0eec60d3f3b2e0f22a56472fc5bb6f0f07f",
+    "benchmark/repo_fixtures/tasks.json": "056796cf17ab590788234b11cfc520c4fa0cacca429e9ad525ba24cd7dd5e45b",
+    "benchmark/repository_benchmark.py": "5097f7f6cff735e06fb127b088a0a47cf087ddb15c7eb85723435774a1474b1d",
+    "benchmark/restore_kat.py": "8399cbf87f63bd77ffa81d08e07a6b822a39105f0b1c8a51a177b8c1e41b8ca0",
+    "benchmark/selftest.py": "50235d6eb31db23e7be6bad9df45d99a968a5ba5295dced558d5ad40fce778d1",
+    "benchmark/summarize.py": "9f02d27c0ab558a74bc4dcc6d7e224403024b85097db2ce03e0f720fe992631c"
+  },
+  "scope": "Synthetic function tests and isolated Django/React repairs. Production repositories and article jobs were not used.",
+  "previously_recorded_source_sha256": {
+    "benchmark/benchmark.py": "86a04dc66fa3cce535fdcf9f489693205b89e18c057d02d91509be05266a7bdb",
+    "benchmark/repository_benchmark.py": "e032fdf747918455a2116dc16846ed34aa2cd7bca84f5776393e19e2bd8b64b5",
+    "benchmark/compare_candidate.py": "e8bcd581146384ae13aff20b159d896761652256a9ccb2e00c1a7ef6a0abcbb4",
+    "benchmark/repo_fixtures/tasks.json": "056796cf17ab590788234b11cfc520c4fa0cacca429e9ad525ba24cd7dd5e45b",
+    "benchmark/repo_fixtures/django_tenant/Dockerfile": "5a2557ec8dfbbf0a4225a2515bc09881d27f0a7e6887a36fe95931221090866e",
+    "benchmark/repo_fixtures/django_tenant/tests.py": "03bea652817e48c506ee8613c1bfb3d1628d565b85e7841cabc57c9819600fd1",
+    "benchmark/repo_fixtures/react_search/Dockerfile": "343209ad6423bd8f7e23f3e8f85cc72900ba2d808ee2183fdf9679ab27e85f44",
+    "benchmark/repo_fixtures/react_search/tests.js": "2a1abf4bea21d37629b503de4738d0eec60d3f3b2e0f22a56472fc5bb6f0f07f",
+    "benchmark/repo_fixtures/react_search/package-lock.json": "d0911bbaa0798d0434491476f9ebe2079c8dbfe09e5e822f58adc424f9cb5453",
+    "benchmark/repo_fixtures/react_search/package.json": "fb9734d434ffac3752b9b405b4224c62da41984442f6a263223e8a657e0cb3e7",
+    "benchmark/repo_fixtures/react_search/public/useArticleSearch.js": "ae0e896f8236777f9a4bd0acda143e043ec0e8b52f9d5d62a9e606fe1a6413d0",
+    "benchmark/repo_fixtures/react_search/public/ArticleResults.js": "1c9ede92079274f1a78e27211a82d85f5cebe89f1c9f677c2a62e12948b7d2bc",
+    "benchmark/repo_fixtures/react_search/reference/useArticleSearch.js": "c3b2322ffc088fd02ee2b728fc0e12b3a817d70c5d3c49d7fa26472b1a55a47f",
+    "benchmark/repo_fixtures/django_tenant/public/settings.py": "3a7bac4f8fa0592cb233d7653913fb43eaf505d325ff1992e394ca356afde924",
+    "benchmark/repo_fixtures/django_tenant/reference/billing/serializers.py": "ea7772773de782d43796039e37a23c83da23979343529780bdf083e67e7efa73",
+    "benchmark/repo_fixtures/django_tenant/reference/billing/views.py": "a84a77736feda6ff8ad8ac2cc181d1c95cbfdad0300c37261c1cfb077b26e289",
+    "benchmark/repo_fixtures/django_tenant/public/billing/models.py": "8b3ee466e49cddd4e389ebd55d46690088a5e9105be22d5ea079d67aca71a166",
+    "benchmark/repo_fixtures/django_tenant/public/billing/serializers.py": "6e12feb7cdfdebb14e8f0eb0d2b80130f9c18b7153acf7cbfe95c2ad691dcef7",
+    "benchmark/repo_fixtures/django_tenant/public/billing/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "benchmark/repo_fixtures/django_tenant/public/billing/views.py": "b0719126dcef64aca2733b4f32b1b650b03f1c762ca63b31d392fd8abc743340"
+  },
+  "author_template": {
+    "repo": "ornith-ai/Ornith-1.5-35B-A3B",
+    "revision": "10fbf86fed7ecee4a061f8b499a618f46001cac1",
+    "url": "https://huggingface.co/ornith-ai/Ornith-1.5-35B-A3B/resolve/10fbf86fed7ecee4a061f8b499a618f46001cac1/chat_template.jinja",
+    "file": "ornith-author-template.jinja",
+    "sha256": "182e77dd83bd8e9ca818b240b82e28f243762cd5dda32e6eef327df7b1cd107e",
+    "bytes": 7536
+  },
+  "thinking_controls": {
+    "kat": {
+      "enable_thinking": true,
+      "reasoning_effort": "high",
+      "effective_control": "on/off in deployed Qwen renderer"
+    },
+    "ornith": {
+      "enable_thinking": true,
+      "reasoning_effort": "omitted; runtime explicitly reports unsupported",
+      "effective_control": "on/off in canonical template"
+    }
+  },
+  "source_hash_scope": "Final reusable source snapshot. During the campaign, compare_candidate.py gained a shared startup helper used by the later budget probe, and summarize.py gained corrected timing/reporting. Fixed task prompts and framework fixtures were verified unchanged. Earlier recorded source hashes are retained separately."
+}

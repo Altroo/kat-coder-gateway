@@ -1,0 +1,19 @@
+{
+  "protocol": "2026-10-08.v3-thinking-budget-probe",
+  "label": "ornith-thinking-16k",
+  "source_label": "ornith-thinking",
+  "tasks": [
+    "invoice_decimal",
+    "async_cache"
+  ],
+  "max_tokens": 16384,
+  "temperature": 1.0,
+  "top_p": 0.95,
+  "thinking": true,
+  "reasoning_effort": "omitted",
+  "started": "2026-10-08T09:57:15Z",
+  "note": "One larger-budget retry only for responses truncated at 8192 tokens; no test feedback. The equal-budget comparison remains unchanged. KAT completed all function responses within 8192 tokens and is not regenerated.",
+  "completed": true,
+  "kat_restored": true,
+  "finished": "2026-10-08T10:17:27Z"
+}

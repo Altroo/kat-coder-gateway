@@ -1,0 +1,17 @@
+{
+  "checked_at": "2026-10-08T10:18:08Z",
+  "service": "active",
+  "health_http_status": 200,
+  "deployment": "/var/www/kat-coder-gateway-releases/f2e1fc04",
+  "candidate_container_removed": true,
+  "stream": {
+    "content": "OK.",
+    "finish_reason": "stop",
+    "usage": {
+      "prompt_tokens": 16,
+      "completion_tokens": 2,
+      "total_tokens": 18
+    },
+    "seconds": 4.307972554117441
+  }
+}

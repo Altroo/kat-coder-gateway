@@ -1,0 +1,88 @@
+{
+  "screening_protocol": "2026-10-07.v3-thinking",
+  "repository_protocol": "2026-10-07.repo-v2-thinking",
+  "template": {
+    "repo": "ornith-ai/Ornith-1.5-35B-A3B",
+    "revision": "10fbf86fed7ecee4a061f8b499a618f46001cac1",
+    "url": "https://huggingface.co/ornith-ai/Ornith-1.5-35B-A3B/resolve/10fbf86fed7ecee4a061f8b499a618f46001cac1/chat_template.jinja",
+    "file": "ornith-author-template.jinja",
+    "sha256": "182e77dd83bd8e9ca818b240b82e28f243762cd5dda32e6eef327df7b1cd107e",
+    "bytes": 7536
+  },
+  "candidate": {
+    "repo": "ornith-ai/Ornith-1.5-35B-A3B-GGUF",
+    "revision": "12393612fd4f730ff5aadc23e9b8f9648aa49ceb",
+    "file": "Ornith-1.5-35B-Q4_K_M.gguf",
+    "size_bytes": 21713463040,
+    "sha256": "42739874cc2ccfdb8523b23fbe52e29b2a7555c8176737ca9ca0b5d59859d41f",
+    "license": "MIT",
+    "download_seconds": 277.4,
+    "verified": true
+  },
+  "llama_image": "ghcr.io/ggml-org/llama.cpp@sha256:33868c035b21dc63f7c60b7438774283fd99215bc319114eb03de5df4ce7cd6b",
+  "settings": {
+    "threads": 8,
+    "candidate_context": 32768,
+    "candidate_memory_gib": 40,
+    "temperature": 1.0,
+    "top_p": 0.95,
+    "thinking": true,
+    "screening_max_tokens": 8192
+  },
+  "runs": [
+    {
+      "label": "kat-thinking",
+      "warmup": {
+        "usage": {
+          "prompt_tokens": 16,
+          "completion_tokens": 2,
+          "total_tokens": 18
+        },
+        "seconds": 3.6746284905821085,
+        "ttft_seconds": 3.324463890865445,
+        "finish_reason": "stop"
+      },
+      "seconds": 2002.995205000043,
+      "peak_process_rss_mib": 22288.4,
+      "resume_warmups": [
+        {
+          "usage": {
+            "prompt_tokens": 16,
+            "completion_tokens": 2,
+            "total_tokens": 18
+          },
+          "seconds": 0.3118114285171032,
+          "ttft_seconds": 0.20125671289861202,
+          "finish_reason": "stop"
+        }
+      ]
+    },
+    {
+      "label": "ornith-thinking",
+      "warmup": {
+        "usage": {
+          "completion_tokens": 2,
+          "prompt_tokens": 16,
+          "total_tokens": 18,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "seconds": 0.2768951840698719,
+        "ttft_seconds": 0.23175839520990849,
+        "finish_reason": "stop"
+      },
+      "seconds": 1894.7950648199767,
+      "peak_process_rss_mib": 39429.3
+    }
+  ],
+  "resume_events": [
+    {
+      "at": "2026-10-08T09:04:35Z",
+      "previous_error": "Benchmark interrupted; restoring KAT",
+      "archive": "thinking-campaign-before-resume-20261008T090435Z.json"
+    }
+  ],
+  "completed": true,
+  "kat_restored": true
+}

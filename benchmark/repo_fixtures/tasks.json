@@ -1,0 +1,40 @@
+[
+  {
+    "id": "django_tenant",
+    "tests": 10,
+    "files": [
+      "settings.py",
+      "billing/__init__.py",
+      "billing/models.py",
+      "billing/serializers.py",
+      "billing/views.py"
+    ],
+    "writable": [
+      "billing/serializers.py",
+      "billing/views.py"
+    ],
+    "command": [
+      "python",
+      "-B",
+      "/checks/tests.py"
+    ],
+    "prompt": "Fix the tenant isolation vulnerability in this small Django REST Framework invoice API. An authenticated user belongs to request.user.company_id. List, retrieve, update and destroy must operate only on that company, returning 404 for another company's invoice. A user without a company must receive 403. On create, assign the user's company automatically; ignore any client-supplied company on create or update so ownership cannot be transferred. Preserve normal CRUD and serializer validation, and keep anonymous access denied. Inspect the existing files first. Make the smallest changes in the allowed files and run the tests."
+  },
+  {
+    "id": "react_search",
+    "tests": 10,
+    "files": [
+      "useArticleSearch.js",
+      "ArticleResults.js"
+    ],
+    "writable": [
+      "useArticleSearch.js",
+      "ArticleResults.js"
+    ],
+    "command": [
+      "node",
+      "/checks/tests.js"
+    ],
+    "prompt": "Fix useArticleSearch so quick query changes cannot show stale results, stale errors, or clear the newest request's loading state. Use the current trimmed query; blank queries must make no request and reset to {results:[],loading:false,error:null}. A new nonempty request resets old results and error, and sets loading true. Pass search(query, {signal}) an AbortSignal and abort on cleanup/unmount. A loader may ignore abort, so old settlements must still be harmless. Changing the search function must start a new request. Current request rejection should set error and stop loading. Keep the hook's public API, CommonJS exports, arrow-function style, and ArticleResults' loading/error/list UI. Inspect the existing files, make the smallest changes, and run the tests."
+  }
+]

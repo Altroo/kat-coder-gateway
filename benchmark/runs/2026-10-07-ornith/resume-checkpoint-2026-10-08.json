@@ -1,0 +1,16 @@
+{
+  "kat_completed_task_sha256": {
+    "invoice_decimal": "8b37def050011b8440bf05916555acfb6843509a655605dc7074ea3231b420f4",
+    "dependency_order": "5b05f342eced0d127289e5ea7cedbb7f09c022d7a1ed84846f641209a07c6459"
+  },
+  "remaining": [
+    "kat async_cache",
+    "kat django_tenant",
+    "kat react_search",
+    "ornith three function tasks",
+    "ornith django_tenant",
+    "ornith react_search"
+  ],
+  "model_deployment": "f2e1fc04",
+  "other_inference_idle": true
+}
