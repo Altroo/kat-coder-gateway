@@ -1,5 +1,5 @@
 #!/bin/sh
-# Start OpenCode with the private KAT gateway and manage its SSH tunnel.
+# Start OpenCode with the private coding gateway and manage its SSH tunnel.
 set -eu
 
 resolve_script() {
@@ -72,7 +72,7 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 if ! gateway_ready; then
-    echo "Connecting to the private KAT gateway..." >&2
+    echo "Connecting to the private coding gateway..." >&2
     ssh -N \
         -o BatchMode=yes \
         -o ExitOnForwardFailure=yes \
@@ -88,7 +88,7 @@ if ! gateway_ready; then
         attempts=$((attempts + 1))
         if ! kill -0 "$tunnel_pid" 2>/dev/null; then
             wait "$tunnel_pid" 2>/dev/null || true
-            echo "Could not open the private KAT gateway tunnel." >&2
+            echo "Could not open the private coding gateway tunnel." >&2
             exit 1
         fi
         if [ "$attempts" -ge 20 ]; then

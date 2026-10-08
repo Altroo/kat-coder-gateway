@@ -1,5 +1,7 @@
 # Deployment
 
+The active endpoint was switched to Ornith for a user-requested trial on 2026-10-08. See [Ornith manual test](ornith-manual-test.md) for its limits, service and rollback details. The KAT deployment below remains installed but disabled during this trial.
+
 This fork adds native OpenAI-compatible tool calling for KAT-Coder V2.5 Dev
 on Colibri's Qwen3.6 engine. The service stays bound to server loopback and is
 reached from a workstation through an SSH tunnel.

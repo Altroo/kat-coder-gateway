@@ -1,0 +1,43 @@
+{
+  "requested_at": "2026-10-08T10:31:08Z",
+  "model": "ornith-1.5-35b-a3b",
+  "context": 65536,
+  "max_output": 32768,
+  "thinking": true,
+  "reasoning_effort": "omitted",
+  "endpoint": "http://127.0.0.1:18080/v1",
+  "service": "ornith-gateway",
+  "kat_service": "disabled",
+  "unit_sha256": "c1f1584610ae4dfe44e398abd129c4eb5a2c5b34e0ded4bbf99bf7cb0aa54192",
+  "verified_at": "2026-10-08T10:34:43Z",
+  "effective_request": {
+    "max_tokens": 32768,
+    "n_predict": 32768,
+    "reasoning_format": "deepseek",
+    "generation_prompt": "<|im_start|>assistant\n<think>\n",
+    "temperature": 0.6000000238418579,
+    "top_p": 0.949999988079071
+  },
+  "opencode_check": {
+    "read_tool": "completed",
+    "answer": "ORNITH_GATEWAY_OK",
+    "exit_code": 0,
+    "session_id": "ses_ee4edb1b2ffe7lZQ9TlNASRmUE"
+  },
+  "services": {
+    "ornith-gateway": {
+      "active": "active",
+      "enabled": "enabled"
+    },
+    "kat-coder-gateway": {
+      "active": "inactive",
+      "enabled": "disabled"
+    }
+  },
+  "direct_stream_check": {
+    "answer": "4",
+    "reasoning_chars": 178,
+    "finish_reason": "stop",
+    "done_event": true
+  }
+}

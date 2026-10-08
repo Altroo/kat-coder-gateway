@@ -1,0 +1,36 @@
+[Unit]
+Description=Ornith 1.5 35B private OpenCode endpoint
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+Conflicts=kat-coder-gateway.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/docker run --rm --name ornith-gateway \
+    --memory 44g --memory-swap 44g --cpuset-cpus 0-7 --cpu-shares 256 \
+    --read-only --cap-drop ALL --security-opt no-new-privileges \
+    --tmpfs /tmp:rw,nosuid,size=64m --log-opt max-size=10m --log-opt max-file=3 \
+    -p 127.0.0.1:18080:18080 \
+    -v /var/www/colibri-benchmarks/ornith-2026-10-07/Ornith-1.5-35B-Q4_K_M.gguf:/model.gguf:ro \
+    -v /var/www/colibri-benchmarks/ornith-2026-10-07/ornith-author-template.jinja:/author-template.jinja:ro \
+    -v /etc/ornith-gateway/api-key:/run/ornith-api-key:ro \
+    ghcr.io/ggml-org/llama.cpp@sha256:33868c035b21dc63f7c60b7438774283fd99215bc319114eb03de5df4ce7cd6b \
+    --model /model.gguf --alias ornith-1.5-35b-a3b \
+    --host 0.0.0.0 --port 18080 --api-key-file /run/ornith-api-key \
+    --threads 8 --threads-batch 8 --ctx-size 65536 --parallel 1 \
+    --n-gpu-layers 0 --batch-size 256 --ubatch-size 128 \
+    --n-predict 32768 --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0 \
+    --reasoning on --reasoning-format deepseek --reasoning-budget -1 \
+    --chat-template-kwargs '{"enable_thinking":true,"preserve_thinking":true}' \
+    --jinja --chat-template-file /author-template.jinja \
+    --timeout 3600 --no-webui --offline
+ExecStop=/usr/bin/docker stop --time 30 ornith-gateway
+ExecStopPost=-/usr/bin/docker rm -f ornith-gateway
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=5min
+TimeoutStopSec=45s
+
+[Install]
+WantedBy=multi-user.target
