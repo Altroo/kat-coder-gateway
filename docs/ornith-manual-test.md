@@ -1,36 +1,26 @@
-# Ornith manual test — 2026-10-08
+# Ornith manual test (retired)
 
-At the user's request, Ornith 1.5 35B-A3B replaces KAT on the private OpenCode endpoint for hands-on testing. KAT's weights and service configuration remain installed; its service is stopped and disabled. No PR or production Git push was made.
+The October 8 trial temporarily replaced KAT with Ornith 1.5 35B-A3B for hands-on OpenCode testing. It used the verified official Q4_K_M GGUF with llama.cpp, not Colibri.
 
-## Active configuration
+## Retirement — October 13, 2026
 
-- Service: `ornith-gateway.service`, enabled at boot; Docker container `ornith-gateway`.
-- Runtime: pinned llama.cpp CPU image in [the service unit](../deploy/ornith-gateway.service). This does not run Ornith through Colibri.
-- Weights: the already verified official `Ornith-1.5-35B-Q4_K_M.gguf`; no second copy or new download.
-- Model ID: `ornith-1.5-35b-a3b`.
-- Endpoint: `http://127.0.0.1:18080/v1`, reached remotely through the existing SSH launcher.
-- Authentication: existing private gateway identity, mounted from `/etc/ornith-gateway/api-key` with root-only permissions. No credential is stored in this repository.
-- Context: **65,536 tokens**. OpenCode response allowance: **32,768 tokens**, including reasoning and final output.
-- Thinking: on, preserved across tool turns; no unsupported reasoning-effort level.
-- Temperature 0.6, top-p 0.95, top-k 20, min-p 0.0; author's pinned chat template.
-- CPU: eight threads, one request slot; 44 GiB container limit with no swap.
-- OpenCode: default model and `deep` agent both use Ornith; one-hour request timeout, fifteen-minute header timeout, two-minute streamed-chunk timeout.
+At the user's request, the Ornith service was stopped and disabled. Its model weights, service unit, dedicated credential copy and unused runtime image were removed. The weight file occupied 21,713,463,040 bytes. Historical benchmark results remain available.
 
-Launch `opencode` normally in the project directory. Start a new session, or select `local-ai/ornith-1.5-35b-a3b` if an existing session remembers KAT. The displayed name is **Ornith 1.5 35B (thinking)**.
+The coding endpoint now uses the existing **KAT-Coder V2.5 Dev on Colibri**. No replacement model was downloaded.
 
-## Verification
+The workstation's OpenCode default and `deep` agent use the KAT thinking profile:
 
-The endpoint passed health and authentication checks: `/health` returned OK, authenticated `/v1/models` listed Ornith, and unauthenticated model access returned 401. A real OpenCode session through the normal SSH launcher called the `read` tool on an isolated fixture and returned `ORNITH_GATEWAY_OK`, exiting successfully without an error event. The server's actual request parameters showed `max_tokens: 32768`, `n_predict: 32768`, reasoning format `deepseek`, and an open `<think>` marker. KAT was inactive and Ornith active. A direct streaming check also emitted nonempty reasoning, returned the correct answer, and ended with `finish_reason: stop` plus `[DONE]`. See the [activation record](../benchmark/runs/2026-10-07-ornith/manual-activation.json).
+- Thinking enabled, with `reasoning_effort: high`.
+- Context capacity: 65,536 tokens.
+- Output limit: 8,192 tokens, including reasoning.
+- Existing authentication, permissions and other agent settings retained.
 
-## Restore KAT when requested
+The Colibri renderer treats `high` as enabling thinking; it does not implement a separate reasoning-effort scale. Existing sessions may retain their previous model selection; start a new session or select the KAT deep profile.
 
-On the server:
+Ollama was not installed on the server at retirement. The application assistant's separate Colibri service and ongoing training were preserved.
 
-```sh
-sudo systemctl disable --now ornith-gateway
-sudo systemctl enable --now kat-coder-gateway
-```
+## Historical evidence
 
-Restore or merge the workstation model entries from the private backup `~/.config/opencode/opencode.jsonc.before-ornith-20261008T103128`, preserving any newer user changes. Then verify KAT health and an authenticated completion. The services conflict so they do not intentionally run together on the same endpoint.
+The [October 8 activation record](../benchmark/runs/2026-10-07-ornith/manual-activation.json) describes the former Ornith trial. It is not a description of the current deployment.
 
-Ornith's active weight file remains under `/var/www/colibri-benchmarks/ornith-2026-10-07`. Do not delete that file as benchmark cleanup while the service uses it. The earlier benchmark results remain unchanged; activating Ornith for this trial is a user choice, not a change to the recorded scores.
+The [benchmark results](../benchmark/results.md) retain the original KAT and Ornith measurements. Ornith's deleted weights would need to be obtained and verified again before reproducing that trial.

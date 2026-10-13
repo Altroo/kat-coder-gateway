@@ -1,6 +1,6 @@
 # Deployment
 
-The active endpoint was switched to Ornith for a user-requested trial on 2026-10-08. See [Ornith manual test](ornith-manual-test.md) for its limits, service and rollback details. The KAT deployment below remains installed but disabled during this trial.
+KAT-Coder on Colibri was restored on 2026-10-13. The Ornith trial ended and its weights, service and unused runtime image were removed. The [retired Ornith trial record](ornith-manual-test.md) preserves the historical context.
 
 This fork adds native OpenAI-compatible tool calling for KAT-Coder V2.5 Dev
 on Colibri's Qwen3.6 engine. The service stays bound to server loopback and is
@@ -12,7 +12,7 @@ reached from a workstation through an SSH tunnel.
 - Maximum generated output: 8,192 tokens
 - One request and one KV slot at a time
 - CPU only, eight physical inference threads
-- Deterministic, non-thinking generation by default
+- OpenCode requests thinking mode; direct API requests without an override retain the deterministic, non-thinking fallback
 
 The model supports a larger theoretical context, but 64K is the practical
 ceiling for this CPU server. It leaves RAM for the hosted applications while
@@ -70,12 +70,12 @@ Running `opencode` from a project directory loads the private API key, opens the
 SSH tunnel, and closes the tunnel when OpenCode exits.
 
 The example uses a lean tool profile for CPU inference. The default `build` and
-`research` agents disable thinking and cap each response at 1,024 tokens. They
-answer broad teaching and explanation requests in chat with at most 300 words,
-and create files only when the user explicitly requests file changes. The
-optional `deep` agent retains thinking mode and the server's 8,192-token ceiling
-for difficult work. It denies external directories and private environment
-files, and asks before `git push`.
+`research` agents enable thinking and cap each response at 8,192 tokens,
+including reasoning. They answer broad teaching and explanation requests in
+chat with at most 300 words, and create files only when the user explicitly
+requests file changes. The `deep` agent uses the same model profile with a
+prompt focused on difficult work. External directories and private environment
+files are denied, and `git push` requires confirmation.
 
 The provider settings use a ten-minute request timeout, a five-minute header
 timeout, and a two-minute streamed-chunk timeout. This accommodates CPU prompt

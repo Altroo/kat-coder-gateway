@@ -174,18 +174,18 @@ was started and its Git worktree. External directories and private environment
 files are denied. `git push` requires confirmation.
 
 The configured model appears as
-`local-ai/kat-coder-v2.5-dev-colibri`. Use `/models` in OpenCode if you need to
-select it manually.
+`local-ai/kat-coder-v2.5-dev-colibri-deep`. Use `/models` in OpenCode if you need
+to select it manually.
 
-The default `build` and `research` agents use a fast profile with thinking off
-and a 1,024-token response ceiling. They answer broad explanation and teaching
+The default `build` and `research` agents use thinking mode with an 8,192-token
+response ceiling, including reasoning. They answer broad explanation and teaching
 requests in chat with a compact overview of at most 300 words, and do not create
 files unless the user explicitly asks for file changes. This avoids turning a
 broad question into a long generated document.
 
-Switch to the primary `deep` agent for difficult debugging, architecture, or
-multi-step implementation work that benefits from thinking mode. The deep
-profile keeps the 8,192-token ceiling. In the terminal, use:
+The primary `deep` agent uses the same thinking profile with a prompt focused
+on difficult debugging, architecture, and multi-step implementation. In the
+terminal, use:
 
 ```sh
 opencode run --agent deep "diagnose this difficult issue"

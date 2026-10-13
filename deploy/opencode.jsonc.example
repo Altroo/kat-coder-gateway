@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "local-ai/kat-coder-v2.5-dev-colibri",
+  "model": "local-ai/kat-coder-v2.5-dev-colibri-deep",
   "default_agent": "build",
   "agents": {
     "build": {
