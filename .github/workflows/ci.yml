@@ -937,7 +937,7 @@ jobs:
           # engine, so rebuild the normal one first.
           make clean >/dev/null 2>&1 || true
           make qwen36
-          QWEN36_TINY=qwen36_tiny_c python3 -m unittest -v tests.test_qwen36_prefix_serve
+          QWEN36_TINY=qwen36_tiny_c python3 -m unittest -v tests.test_qwen36_prefix_serve tests.test_qwen36_text_stops
       - name: Expert kernel A/B on an int4 gs64 fixture (old path vs expert_ffn.h, byte-identical ids)
         run: |
           cd c

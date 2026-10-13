@@ -1068,12 +1068,6 @@ def _tool_stream_markers():
         return (v41_dsml.TOOL_CALLS_PREFIX, v41_dsml.TOOL_CALL_PREFIX)
     if ARCH == "kimi":
         return (K3_TOOLS_OPEN,)
-    if ARCH in ("qwen36", "qwen38"):
-        # Quantized KAT occasionally omits only the outer <tool_call> wrapper
-        # while still emitting one complete, declared <function=...> block.
-        # The final parser recovers that strict form; suppress it from streamed
-        # visible content just as we suppress the canonical outer marker.
-        return (BOX_START, "<function=")
     return (BOX_START,)
 
 
@@ -2147,8 +2141,40 @@ QWEN_FUNCTION_RE = re.compile(r"<function=([^>\n]+)>\s*(.*?)</function>", re.S)
 QWEN_PARAM_RE = re.compile(r"<parameter=([^>\n]+)>\n(.*?)\n</parameter>", re.S)
 
 
-def parse_qwen_tool_calls(reply, tools=None):
-    """Parse Qwen3.8's XML-ish calls back into OpenAI `tool_calls`.
+def _qwen_argument(raw, declared):
+    """Restore declared JSON types, including the template's True/False/None.
+
+    This checks the declared top-level type, not every JSON Schema constraint.
+    An untyped parameter stays text, as it did before tool-call recovery.
+    """
+    kind = declared.get("type") if isinstance(declared, dict) else None
+    kinds = kind if isinstance(kind, list) else [kind]
+    if kind is None:
+        return raw
+    value = raw.strip()
+    if "null" in kinds and value in ("null", "None"):
+        return None
+    if "string" in kinds:
+        return raw
+    if "boolean" in kinds and value.lower() in ("true", "false"):
+        return value.lower() == "true"
+    parsed = json.loads(raw)
+    numeric = type(parsed) in (int, float)
+    finite = numeric and (type(parsed) is int or math.isfinite(parsed))
+    if (("array" in kinds and isinstance(parsed, list)) or
+            ("object" in kinds and isinstance(parsed, dict)) or
+            ("boolean" in kinds and type(parsed) is bool) or
+            ("null" in kinds and parsed is None) or
+            ("number" in kinds and finite) or
+            ("integer" in kinds and finite and (type(parsed) is int or parsed.is_integer()))):
+        # NaN/Infinity can also occur inside containers; these are not JSON.
+        json.dumps(parsed, allow_nan=False)
+        return parsed
+    raise ValueError("tool parameter does not match its declared type")
+
+
+def parse_qwen_tool_calls(reply, tools=None, *, strip_text=True):
+    """Parse Qwen's XML-ish calls back into OpenAI `tool_calls`.
 
     Values are returned as strings, which is what the template feeds in: it
     writes a str argument unquoted, so the original type is not recoverable from
@@ -2157,80 +2183,125 @@ def parse_qwen_tool_calls(reply, tools=None):
     anything the schema did not promise."""
     schema = {}
     required = {}
+    closed = set()
     for tool in (tools or []):
         fn = tool.get("function", tool) if isinstance(tool, dict) else {}
-        params = (fn.get("parameters") or {}).get("properties") or {}
         name = fn.get("name")
-        if isinstance(name, str) and name and isinstance(params, dict):
-            schema[name] = params
-            required[name] = set((fn.get("parameters") or {}).get("required") or [])
+        params = (fn.get("parameters") or {}).get("properties") or {}
+        if isinstance(name, str) and name:
+            if isinstance(params, dict):
+                schema[name] = params
+                required[name] = set((fn.get("parameters") or {}).get("required") or [])
+                if (fn.get("parameters") or {}).get("additionalProperties") is False:
+                    closed.add(name)
 
-    canonical = list(QWEN_CALL_RE.finditer(reply or ""))
-    recovered_inner = False
-    matches = canonical
-    if not matches and tools and "<tool_call>" not in (reply or ""):
-        inner = list(QWEN_FUNCTION_RE.finditer(reply or ""))
-        if inner and not QWEN_FUNCTION_RE.sub("", reply or "").strip():
-            matches = inner
-            recovered_inner = True
-    calls = []
-    invalid = []
-    for position, match in enumerate(matches):
-        name = match.group(1).strip()
+    def make_call(name, body, position):
         if tools and name not in schema:
-            invalid.append(f"undeclared tool {name!r}")
-            continue
+            return None
         args = {}
-        valid = True
-        for key, raw in QWEN_PARAM_RE.findall(match.group(2)):
+        if QWEN_PARAM_RE.sub("", body).strip():
+            return None
+        for key, raw in QWEN_PARAM_RE.findall(body):
             key = key.strip()
+            if key in args or (name in closed and key not in schema[name]):
+                return None
             declared = (schema.get(name) or {}).get(key) or {}
-            kind = declared.get("type") if isinstance(declared, dict) else None
-            if isinstance(kind, list):
-                kind = next((item for item in kind if item != "null"), None)
-            if kind in (None, "string"):
-                args[key] = raw
-            elif kind == "boolean" and raw.strip().lower() in ("true", "false"):
-                args[key] = raw.strip().lower() == "true"
-            else:
-                try:
-                    args[key] = json.loads(raw)
-                except (TypeError, ValueError):
-                    invalid.append(f"invalid {kind} parameter {key!r} for {name!r}")
-                    valid = False
-        missing = required.get(name, set()) - set(args)
-        if missing:
-            invalid.append(f"missing required parameters for {name!r}: {sorted(missing)!r}")
-            valid = False
-        if not valid:
-            continue
+            try:
+                args[key] = _qwen_argument(raw, declared)
+            except (TypeError, ValueError):
+                return None
+        if required.get(name, set()) - set(args):
+            return None
         arguments = json.dumps(args, ensure_ascii=False, separators=(",", ":"))
         stable = hashlib.sha256(
             f"{position}\0{name}\0{arguments}".encode("utf-8")).hexdigest()[:24]
-        calls.append({
+        return {
             "id": f"call_{stable}",
             "type": "function",
-            "function": {"name": name, "arguments": arguments},
-        })
-    strip_re = QWEN_FUNCTION_RE if recovered_inner else QWEN_CALL_RE
-    text = strip_re.sub("", reply or "") if matches else (reply or "")
-    if calls and recovered_inner:
-        sys.stderr.write("[api] qwen tool call recovered from a complete inner function block\n")
-        sys.stderr.flush()
-    if invalid:
-        sys.stderr.write("[api] qwen tool call rejected: " + "; ".join(invalid) + "\n")
-        sys.stderr.flush()
-    if not calls and tools and ("<tool_call>" in (reply or "")
-                                or "<function=" in (reply or "")):
-        sys.stderr.write("[api] qwen38 tool markers present but no call parsed -- "
-                         "possibly truncated or mangled output\n")
-        sys.stderr.flush()
-    return text.strip(), calls
+            "function": {
+                "name": name,
+                "arguments": arguments,
+            },
+        }
 
+    reply = reply or ""
+    matches = list(QWEN_CALL_RE.finditer(reply))
+    recovered = False
+    if not matches and tools and "<tool_call>" not in reply:
+        # Some quantized checkpoints omit just the outer wrapper. Recover only a
+        # reply made entirely of complete function blocks: quoted examples or a
+        # marker mentioned in prose must never turn into an executable call.
+        inner = list(QWEN_FUNCTION_RE.finditer(reply))
+        if inner and not QWEN_FUNCTION_RE.sub("", reply).strip():
+            matches = inner
+            recovered = True
+    calls = []
+    text_parts = []
+    end = 0
+    for position, match in enumerate(matches):
+        call = make_call(match.group(1).strip(), match.group(2), position)
+        if call is not None:
+            calls.append(call)
+            text_parts.append(reply[end:match.start()])
+            end = match.end()
+        elif recovered:
+            # Recover only when the entire bare reply is unambiguous and valid.
+            calls = []
+            text_parts = []
+            end = 0
+            break
+    text = "".join(text_parts) + reply[end:]
+
+    if not calls and tools and (
+        "<tool_call>" in (reply or "") or "<function=" in (reply or "")
+    ):
+        sys.stderr.write(
+            "[api] qwen tool markers present but no call parsed -- "
+            "possibly truncated or mangled output\n"
+        )
+        sys.stderr.flush()
+
+    return (text.strip() if strip_text else text), calls
 
 
 # Backward compatibility for existing Qwen3.8 callers.
 parse_qwen38_tool_calls = parse_qwen_tool_calls
+
+
+class QwenToolStream:
+    """Hold ambiguous tool syntax until the final parser accepts or releases it.
+
+    Prose before a marker streams immediately. Bare function blocks are only
+    calls if the complete reply contains nothing else, so their suffix cannot
+    be discarded merely because a marker appeared in one engine chunk.
+    """
+    def __init__(self, emit, tools):
+        self.emit = emit
+        self.tools = tools
+        self.parts = []
+        self.pending = ""
+        self.held = False
+        self.emitted = 0
+
+    def feed(self, text):
+        self.parts.append(text)
+        if self.held:
+            return
+        self.pending += text
+        markers = ("<tool_call>", "<function=")
+        positions = [self.pending.find(marker) for marker in markers]
+        hits = [position for position in positions if position >= 0]
+        self.held = bool(hits)
+        n = min(hits) if hits else max(0, len(self.pending) - max(map(len, markers)) + 1)
+        if n:
+            self.emit(self.pending[:n])
+            self.emitted += n
+            self.pending = self.pending[n:]
+
+    def finish(self):
+        text, calls = parse_qwen_tool_calls("".join(self.parts), self.tools, strip_text=False)
+        self.emit(text[self.emitted:])
+        return calls
 
 
 # ---- MiMo-V2.6 (Xiaomi) -------------------------------------------------------------------
@@ -4013,7 +4084,7 @@ def stop_policy(body, chat):
         # engine handles by token id. Quantized checkpoints can instead spell
         # the marker as ordinary text pieces. Keep that template boundary out
         # of OpenAI responses without overriding an explicit client stop.
-        return DEFAULT_QWEN36_CHAT_STOP_SEQUENCES, False
+        return DEFAULT_QWEN36_CHAT_STOP_SEQUENCES, ignore_leading
     return sequences, ignore_leading
 
 
@@ -4163,6 +4234,10 @@ def validate_tools(body):
             if params.get("required") is not None and not isinstance(params["required"], list):
                 raise APIError(400, f"Tool `parameters.required` must be an array at index {idx}.",
                                f"tools.{idx}.function.parameters.required", "invalid_value")
+            for position, name in enumerate(params.get("required") or []):
+                if not isinstance(name, str):
+                    raise APIError(400, "Tool `parameters.required` entries must be strings.",
+                                   f"tools.{idx}.function.parameters.required.{position}", "invalid_value")
 
 
 def generation_options(body, limit):
@@ -7696,9 +7771,14 @@ class APIHandler(BaseHTTPRequestHandler):
                 raw = []
                 sideband = ToolSideband(ARCH == "kimi", stop_sequences,
                                         ignore_leading_stop)
+                qwen_stream = (QwenToolStream(emit, tools) if chat_flavor() in
+                               ("qwen36", "qwen38", "qwen3_coder") else None)
 
                 def feed_content(chunk):               # answer text only (post-</think>)
                     raw.append(chunk)
+                    if qwen_stream is not None:
+                        qwen_stream.feed(chunk)
+                        return
                     if sideband.seen:
                         emit(chunk)
                         return
@@ -7744,10 +7824,13 @@ class APIHandler(BaseHTTPRequestHandler):
                 sideband.finish()
                 if think:
                     think.finish()
-                if not sp["tool"] and sp["buf"]:
-                    emit(sp["buf"])                     # no tool call happened: flush held tail
-                _content, calls = parse_arch_tool_calls("".join(raw), tools,
-                                                        sideband.reply())
+                if qwen_stream is not None:
+                    calls = qwen_stream.finish()
+                else:
+                    if not sp["tool"] and sp["buf"]:
+                        emit(sp["buf"])
+                    _content, calls = parse_arch_tool_calls("".join(raw), tools,
+                                                            sideband.reply())
                 for i, tc in enumerate(calls):
                     event([{"index": 0, "delta": {"tool_calls": [{"index": i, "id": tc["id"],
                              "type": "function", "function": {"name": tc["function"]["name"],
@@ -8156,6 +8239,9 @@ class APIHandler(BaseHTTPRequestHandler):
                 if not tools:
                     emit_text(chunk)
                     return
+                if qwen_stream is not None:
+                    qwen_stream.feed(chunk)
+                    return
                 if sideband.seen:
                     emit_text(chunk)
                     return
@@ -8173,6 +8259,9 @@ class APIHandler(BaseHTTPRequestHandler):
                 if flush:
                     emit_text(state["buf"][:flush])
                     state["buf"] = state["buf"][flush:]
+
+            qwen_stream = (QwenToolStream(emit_text, tools) if tools and chat_flavor() in
+                           ("qwen36", "qwen38", "qwen3_coder") else None)
 
             def emit_thinking(chunk):
                 if not enable_thinking:
@@ -8220,7 +8309,9 @@ class APIHandler(BaseHTTPRequestHandler):
             if split:
                 split.close()
                 close_thinking()               # budget exhaustion before </think>
-            if tools and not state["in_tool"] and state["buf"]:
+            if qwen_stream is not None:
+                qwen_stream.finish()
+            elif tools and not state["in_tool"] and state["buf"]:
                 emit_text(state["buf"])
             ka_stop.set()
             ka_thread.join(timeout=2)

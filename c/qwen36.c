@@ -5430,10 +5430,11 @@ static int q36_serve_start(Model *m, ServeReq *q, int **ids_out, int *np_out, fl
     /* `reuse` is the ABSOLUTE position of the first fresh token: attention and
      * the KV rows are position-indexed, so this has to be the real offset. */
     int fresh = np - reuse;
-    int chunk = (g_q36_mux_slots > 1 || q->logprobs > 0 || getenv("DUMP_LAYERS"))
+    int chunk = (g_q36_mux_slots > 1 || q->logprobs > 0 || getenv("DUMP_LAYERS") || m->vis_rows
+                 || qt_ready() || qq_active())
               ? fresh : serve_prefill_chunk_rows(fresh);
 #ifdef COLI_VULKAN
-    if (g_vk_chain) chunk = fresh;
+    if (g_vk_ready || vkt_ready()) chunk = fresh;
 #endif
     int fed = 0, prefill_control = Q36_CONTROL_NONE;
     float *lo = NULL;
