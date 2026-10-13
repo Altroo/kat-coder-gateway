@@ -30,6 +30,18 @@ class QwenToolValidationTest(unittest.TestCase):
             expected = hashlib.sha256(f"{position}\0edit\0{arguments}".encode()).hexdigest()[:24]
             self.assertEqual(call["id"], "call_" + expected)
 
+    def test_closed_empty_schema_rejects_spurious_arguments_parameter(self):
+        tools = [{"type": "function", "function": {
+            "name": "get_status", "parameters": {"type": "object",
+            "properties": {}, "additionalProperties": False}}}]
+        valid = "<function=get_status></function>"
+        text, calls = parse_qwen_tool_calls(valid, tools)
+        self.assertEqual(text, "")
+        self.assertEqual(json.loads(calls[0]["function"]["arguments"]), {})
+        invalid = ("<function=get_status><parameter=arguments>\n{}\n"
+                   "</parameter></function>")
+        self.assertEqual(parse_qwen_tool_calls(invalid, tools), (invalid, []))
+
     def test_complete_inner_blocks_recover_with_declared_types(self):
         for reply in (CALL, " \n" + CALL + "\n", CALL + "\n" + CALL,
                       "<tool_call>" + CALL + "</tool_call>"):
