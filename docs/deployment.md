@@ -116,6 +116,45 @@ KAT_DEPLOY_HEALTH_URL=http://127.0.0.1:18080/health
 KAT_DEPLOY_BRANCH=main
 ```
 
-Keep `deploy.env` on the server. Do not commit it. The hook checks out the new
-revision and builds the native engine before changing the active service link.
-If the restart or health check fails, it restores the previous link.
+Keep `deploy.env` on the server. Do not commit it. The hook archives the exact
+pushed commit into a unique directory under `${KAT_DEPLOY_TARGET}-releases`.
+It builds there without modifying the previous checkout, then atomically
+replaces the active symlink. The service path must be a symlink, not a real
+directory. Linux `flock -n` rejects overlapping deployments; it does not queue
+them. Git has already accepted the push when a post-receive hook fails, so a
+rejected deployment must be retried after the active deployment finishes.
+An ordinary repeat push of the same commit is a no-op and will not rerun the
+hook. An operator must rerun the hook with the intended revision or push a new
+commit. Health probes have explicit connection and total timeouts.
+
+Before installing the updated hook, verify Linux `flock`, GNU `readlink`, and
+GNU `mv` are available. The deploy account must be able to create release
+directories and use noninteractive sudo for the hook's scoped `ln`, `mv`, and
+`rm` operations and service `restart`/`stop`. An older policy that permits only
+`ln` and `restart` is not sufficient. Review the exact server paths and sudo
+policy before deployment; the local tests do not verify real permissions.
+
+The private configuration remains outside the release. By default it is read
+from `$KAT_DEPLOY_TARGET/.env.production`; optionally set
+`KAT_DEPLOY_RUNTIME_ENV` to another private configuration file. Its real path
+is resolved before switching releases, and each release links to that same
+file without copying or changing its permissions. The service's systemd
+`EnvironmentFile` follows this link. Keep the config path and parent
+directories accessible as required by systemd and the service account. The
+deploy account only needs to resolve and stat the config path, not read the
+secrets: systemd reads its `EnvironmentFile` before dropping privileges.
+
+If restart or health validation fails, the hook restores the untouched previous
+release and restarts it. A failed first deployment removes its new active link
+and stops the service. Failed release directories remain for diagnosis; no
+automatic pruning deletes older releases. A build failure leaves the active
+release and service unchanged. Updating this hook and deploying it to the
+server are separate operational steps. Coordinate deployment with other
+long-running workloads: the build and service restart share server resources.
+
+Test the hook locally without sudo, systemd, network access, or a real build:
+
+```sh
+cd c
+python3 -m unittest -v tests.test_gateway_deploy
+```
